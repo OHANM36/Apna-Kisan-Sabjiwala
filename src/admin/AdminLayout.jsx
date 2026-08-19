@@ -4,6 +4,7 @@ import { useAdminAuth } from '../context/AdminAuthContext'
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
   { to: '/admin/vegetables', label: 'सब्ज़ियाँ', icon: '🥕' },
+  { to: '/admin/bulk-edit', label: 'कीमतें बदलें', icon: '💰' },
   { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
   { to: '/admin/customers', label: 'ग्राहक', icon: '👥' },
   { to: '/admin/reports', label: 'रिपोर्ट', icon: '📈' },

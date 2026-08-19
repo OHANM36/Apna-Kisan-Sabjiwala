@@ -6,12 +6,14 @@ import Checkout from './pages/Checkout'
 import OrderConfirmation from './pages/OrderConfirmation'
 import OrderHistory from './pages/OrderHistory'
 import BottomNav from './components/BottomNav'
+import FloatingCallButton from './components/FloatingCallButton'
 
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import AdminLogin from './admin/AdminLogin'
 import AdminLayout from './admin/AdminLayout'
 import AdminDashboard from './admin/AdminDashboard'
 import AdminVegetables from './admin/AdminVegetables'
+import AdminBulkEdit from './admin/AdminBulkEdit'
 import AdminOrders from './admin/AdminOrders'
 import AdminCustomers from './admin/AdminCustomers'
 import AdminReports from './admin/AdminReports'
@@ -41,6 +43,7 @@ export default function App() {
                 <Route element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="vegetables" element={<AdminVegetables />} />
+                  <Route path="bulk-edit" element={<AdminBulkEdit />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="reports" element={<AdminReports />} />
@@ -51,6 +54,7 @@ export default function App() {
         />
       </Routes>
 
+      {!isAdminRoute && <FloatingCallButton />}
       {!isAdminRoute && <BottomNav />}
     </>
   )
