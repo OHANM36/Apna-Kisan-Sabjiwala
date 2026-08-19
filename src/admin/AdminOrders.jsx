@@ -73,6 +73,37 @@ export default function AdminOrders() {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 mb-2">{o.full_address}{o.mohalla ? `, ${o.mohalla}` : ''}, {o.city} - {o.pincode}</p>
                 <p className="text-xs text-gray-500 mb-2">डिलीवरी: {o.delivery_date} • {o.delivery_time_slot}</p>
+
+                {o.latitude && o.longitude ? (
+                  <div className="mb-3">
+                    <iframe
+                      title={`map-${o.id}`}
+                      className="w-full h-48 rounded-xl border border-gray-200"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${o.longitude - 0.006}%2C${o.latitude - 0.006}%2C${o.longitude + 0.006}%2C${o.latitude + 0.006}&layer=mapnik&marker=${o.latitude}%2C${o.longitude}`}
+                      loading="lazy"
+                    />
+                    <a
+                      href={`https://www.google.com/maps?q=${o.latitude},${o.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 mt-2"
+                    >
+                      🗺️ Google Maps में पूरा मार्ग देखें
+                    </a>
+                  </div>
+                ) : (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      `${o.full_address}, ${o.mohalla || ''}, ${o.city} - ${o.pincode}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 mb-3"
+                  >
+                    🗺️ पते से मानचित्र पर खोजें (GPS लोकेशन उपलब्ध नहीं थी)
+                  </a>
+                )}
+
                 <div className="flex flex-col gap-1 mb-3">
                   {o.order_items.map((i) => (
                     <div key={i.id} className="flex justify-between text-xs text-gray-600">

@@ -33,6 +33,8 @@ export default function Checkout() {
     deliveryDate: '',
     deliveryTime: DELIVERY_TIME_SLOTS[0],
     notes: '',
+    latitude: null,
+    longitude: null,
   })
   const [coupon, setCoupon] = useState('')
   const [discount, setDiscount] = useState(0)
@@ -54,6 +56,8 @@ export default function Checkout() {
         mohalla: loc.mohalla || f.mohalla,
         city: loc.city || f.city,
         pincode: loc.pincode || f.pincode,
+        latitude: loc.lat,
+        longitude: loc.lng,
       }))
     } catch (err) {
       setLocationError(typeof err === 'string' ? err : 'लोकेशन नहीं मिल सकी। कृपया पता खुद लिखें।')
@@ -158,6 +162,8 @@ export default function Checkout() {
           delivery_date: form.deliveryDate,
           delivery_time_slot: form.deliveryTime,
           extra_notes: form.notes,
+          latitude: form.latitude,
+          longitude: form.longitude,
           subtotal,
           delivery_fee: deliveryFee,
           discount,
