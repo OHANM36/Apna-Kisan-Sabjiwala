@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 import { formatRupee } from '../utils/format'
 import Loading from '../components/Loading'
 
-const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
+const UNITS = ['किलो', '100 ग्राम', '250 ग्राम', '500 ग्राम', 'आधा किलो', 'गड्डी', 'नग']
 const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध' }
 
 export default function AdminVegetables() {
