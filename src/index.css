@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  font-family: 'Noto Sans Devanagari', 'Poppins', sans-serif;
+  background-color: #f4faf3;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* स्क्रॉलबार छुपाएं (मोबाइल जैसा फील) */
+::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-primary {
+  @apply bg-kisan text-white font-bold py-3 px-6 rounded-xl active:scale-95 transition-transform shadow-md disabled:opacity-50 disabled:active:scale-100;
+}
+
+.btn-outline {
+  @apply border-2 border-kisan text-kisan font-bold py-3 px-6 rounded-xl active:scale-95 transition-transform disabled:opacity-50;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+}
+
+.input-field {
+  @apply w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-kisan focus:outline-none;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
