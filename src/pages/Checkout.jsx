@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
 import { supabase } from '../supabaseClient'
 import { startOnlinePayment } from '../utils/payment'
+import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
 import { formatRupee, DELIVERY_TIME_SLOTS } from '../utils/format'
 
@@ -39,6 +40,27 @@ export default function Checkout() {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState('')
+  const [locating, setLocating] = useState(false)
+  const [locationError, setLocationError] = useState('')
+
+  async function handleUseCurrentLocation() {
+    setLocating(true)
+    setLocationError('')
+    try {
+      const loc = await getCurrentLocationAddress()
+      setForm((f) => ({
+        ...f,
+        address: loc.fullAddress || f.address,
+        mohalla: loc.mohalla || f.mohalla,
+        city: loc.city || f.city,
+        pincode: loc.pincode || f.pincode,
+      }))
+    } catch (err) {
+      setLocationError(typeof err === 'string' ? err : 'लोकेशन नहीं मिल सकी। कृपया पता खुद लिखें।')
+    } finally {
+      setLocating(false)
+    }
+  }
 
   const deliveryFee =
     settings.free_delivery_above && subtotal >= settings.free_delivery_above ? 0 : settings.delivery_fee
@@ -219,6 +241,19 @@ export default function Checkout() {
           <Field label="मोबाइल नंबर" error={errors.phone}>
             <input className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10 अंकों का मोबाइल नंबर" inputMode="numeric" />
           </Field>
+
+          <div>
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={locating}
+              className="w-full flex items-center justify-center gap-2 border-2 border-kisan text-kisan font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-60"
+            >
+              <span>📍</span>
+              {locating ? 'लोकेशन ढूंढी जा रही है...' : 'मेरी वर्तमान लोकेशन का उपयोग करें'}
+            </button>
+            {locationError && <p className="text-red-500 text-xs mt-1.5 font-semibold">{locationError}</p>}
+          </div>
 
           <Field label="पूरा पता" error={errors.address}>
             <textarea className="input-field" rows={2} value={form.address} onChange={(e) => updateField('address', e.target.value)} placeholder="मकान नंबर, गली नंबर आदि" />
