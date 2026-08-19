@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
+import logo from '../assets/logo.png'
 
 export default function AdminLogin() {
   const { login, session, isAdmin, loading } = useAdminAuth()
@@ -31,7 +32,7 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-kisan-dark flex items-center justify-center px-6">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <span className="text-5xl">🥬</span>
+          <img src={logo} alt="अपना किसान सब्ज़ीवाला" className="w-16 h-16 rounded-full object-cover mx-auto" />
           <h1 className="font-extrabold text-xl text-gray-800 mt-2">एडमिन पैनल</h1>
           <p className="text-gray-500 text-sm">अपना किसान सब्ज़ीवाला</p>
         </div>

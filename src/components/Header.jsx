@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import logo from '../assets/logo.png'
 
 export default function Header({ showSearch, searchValue, onSearchChange }) {
   const { totalItems } = useCart()
@@ -8,7 +9,7 @@ export default function Header({ showSearch, searchValue, onSearchChange }) {
     <header className="sticky top-0 z-30 bg-kisan text-white shadow-md">
       <div className="flex items-center justify-between px-4 py-3">
         <Link to="/" className="flex items-center gap-2">
-          <span className="text-2xl">🥬</span>
+          <img src={logo} alt="अपना किसान सब्ज़ीवाला" className="w-10 h-10 rounded-full object-cover shrink-0" />
           <div>
             <h1 className="font-extrabold text-lg leading-tight">अपना किसान सब्ज़ीवाला</h1>
             <p className="text-[11px] text-green-100 leading-tight">ताज़ी सब्ज़ियाँ — सीधे आपके घर तक</p>

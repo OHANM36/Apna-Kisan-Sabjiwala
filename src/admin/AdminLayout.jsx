@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Outlet } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
+import logo from '../assets/logo.png'
 
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
@@ -25,7 +26,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-gray-50 md:flex">
       <aside className="md:w-60 bg-kisan-dark text-white md:min-h-screen">
         <div className="p-5 flex items-center gap-2 border-b border-white/10">
-          <span className="text-2xl">🥬</span>
+          <img src={logo} alt="अपना किसान सब्ज़ीवाला" className="w-9 h-9 rounded-full object-cover shrink-0" />
           <div>
             <p className="font-extrabold text-sm leading-tight">अपना किसान सब्ज़ीवाला</p>
             <p className="text-[11px] text-green-200">एडमिन पैनल</p>
