@@ -1,11 +1,17 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { NavLink, Navigate, Outlet } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
+import { supabase } from '../supabaseClient'
+import { playNewOrderSound, playStatusChangeSound } from '../utils/sounds'
+import AdminToastList from '../components/AdminToastList'
 import logo from '../assets/logo.png'
 
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
   { to: '/admin/vegetables', label: 'सब्ज़ियाँ', icon: '🥕' },
   { to: '/admin/bulk-edit', label: 'कीमतें बदलें', icon: '💰' },
+  { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
+  { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
   { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
   { to: '/admin/customers', label: 'ग्राहक', icon: '👥' },
   { to: '/admin/reports', label: 'रिपोर्ट', icon: '📈' },
@@ -13,6 +19,55 @@ const links = [
 
 export default function AdminLayout() {
   const { session, isAdmin, loading, logout, adminProfile } = useAdminAuth()
+  const [toasts, setToasts] = useState([])
+  const toastIdRef = useRef(0)
+
+  const pushToast = useCallback((message, type) => {
+    const id = ++toastIdRef.current
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 5000)
+  }, [])
+
+  useEffect(() => {
+    if (!session || !isAdmin) return
+
+    const channel = supabase
+      .channel('admin-orders-watch')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          playNewOrderSound()
+          pushToast(`🆕 नया ऑर्डर आया: ${payload.new.order_number} — ${payload.new.customer_name}`, 'new-order')
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          const oldStatus = payload.old?.order_status
+          const newStatus = payload.new?.order_status
+          const oldPayment = payload.old?.payment_status
+          const newPayment = payload.new?.payment_status
+          if (oldStatus !== newStatus || oldPayment !== newPayment) {
+            playStatusChangeSound()
+            pushToast(
+              `🔄 ऑर्डर ${payload.new.order_number}: ${newStatus}${
+                oldPayment !== newPayment ? ` • भुगतान: ${newPayment}` : ''
+              }`,
+              'status-change'
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session, isAdmin, pushToast])
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">लोड हो रहा है...</div>
@@ -24,6 +79,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 md:flex">
+      <AdminToastList toasts={toasts} />
       <aside className="md:w-60 bg-kisan-dark text-white md:min-h-screen">
         <div className="p-5 flex items-center gap-2 border-b border-white/10">
           <img src={logo} alt="अपना किसान सब्ज़ीवाला" className="w-9 h-9 rounded-full object-cover shrink-0" />
