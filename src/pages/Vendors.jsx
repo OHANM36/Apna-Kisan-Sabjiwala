@@ -16,7 +16,7 @@ export default function Vendors() {
     setLoading(true)
     const { data } = await supabase
       .from('sellers')
-      .select('id, business_name, owner_name, photo_url')
+      .select('id, business_name, owner_name, phone, photo_url')
       .eq('is_approved', true)
       .eq('is_active', true)
       .order('business_name')

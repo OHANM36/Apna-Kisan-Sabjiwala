@@ -30,6 +30,7 @@ import SellerLayout from './seller/SellerLayout'
 import SellerDashboard from './seller/SellerDashboard'
 import SellerVegetables from './seller/SellerVegetables'
 import SellerOrders from './seller/SellerOrders'
+import SellerProfile from './seller/SellerProfile'
 
 export default function App() {
   const location = useLocation()
@@ -83,6 +84,7 @@ export default function App() {
                   <Route index element={<SellerDashboard />} />
                   <Route path="vegetables" element={<SellerVegetables />} />
                   <Route path="orders" element={<SellerOrders />} />
+                  <Route path="profile" element={<SellerProfile />} />
                 </Route>
               </Routes>
             </SellerAuthProvider>

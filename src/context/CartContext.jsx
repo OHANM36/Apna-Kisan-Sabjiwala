@@ -34,6 +34,7 @@ export function CartProvider({ children }) {
           id: vegetable.id,
           vegetableId,
           sellerId: vegetable.sellerId || vegetable.seller_id || null,
+          sellerName: vegetable.sellerName || vegetable.sellers?.business_name || null,
           name: vegetable.name,
           emoji: vegetable.emoji,
           image_url: vegetable.image_url,

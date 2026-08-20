@@ -59,8 +59,11 @@ export default function OrderConfirmation() {
           <h3 className="font-bold text-gray-700 text-sm mb-3">ऑर्डर का विवरण</h3>
           <div className="flex flex-col gap-2 mb-3">
             {items.map((i) => (
-              <div key={i.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">{i.vegetable_name} x {i.quantity} {i.unit}</span>
+              <div key={i.id} className="flex justify-between text-sm items-start">
+                <div>
+                  <span className="text-gray-600">{i.vegetable_name} x {i.quantity} {i.unit}</span>
+                  {i.seller_name && <p className="text-[11px] text-gray-400 font-semibold">🧑‍🌾 {i.seller_name}</p>}
+                </div>
                 <span className="font-semibold text-gray-800">{formatRupee(i.item_total)}</span>
               </div>
             ))}

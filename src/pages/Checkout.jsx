@@ -187,6 +187,7 @@ export default function Checkout() {
         quantity: i.quantity,
         item_total: i.price * i.quantity,
         seller_id: i.sellerId || null,
+        seller_name: i.sellerName || null,
       }))
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) throw itemsErr

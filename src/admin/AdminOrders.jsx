@@ -107,7 +107,7 @@ export default function AdminOrders() {
                 <div className="flex flex-col gap-1 mb-3">
                   {o.order_items.map((i) => (
                     <div key={i.id} className="flex justify-between text-xs text-gray-600">
-                      <span>{i.vegetable_name} x {i.quantity} {i.unit}</span>
+                      <span>{i.vegetable_name} x {i.quantity} {i.unit}{i.seller_name ? ` (${i.seller_name})` : ''}</span>
                       <span>{formatRupee(i.item_total)}</span>
                     </div>
                   ))}

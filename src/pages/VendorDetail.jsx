@@ -20,7 +20,7 @@ export default function VendorDetail() {
     setLoading(true)
     const { data: vendorData } = await supabase
       .from('sellers')
-      .select('id, business_name, owner_name, photo_url, is_approved, is_active')
+      .select('id, business_name, owner_name, phone, email, photo_url, is_approved, is_active')
       .eq('id', vendorId)
       .maybeSingle()
 
@@ -81,6 +81,7 @@ export default function VendorDetail() {
           <div>
             <h2 className="font-extrabold text-lg text-gray-800 leading-tight">{vendor.business_name}</h2>
             <p className="text-gray-500 text-sm">{vendor.owner_name}</p>
+            {vendor.phone && <a href={`tel:${vendor.phone}`} className="text-kisan text-xs font-bold">📞 {vendor.phone}</a>}
           </div>
         </div>
 

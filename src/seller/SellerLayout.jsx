@@ -6,6 +6,7 @@ const links = [
   { to: '/seller', label: 'डैशबोर्ड', icon: '📊', end: true },
   { to: '/seller/vegetables', label: 'मेरी सब्ज़ियाँ', icon: '🥕' },
   { to: '/seller/orders', label: 'मेरे ऑर्डर', icon: '📦' },
+  { to: '/seller/profile', label: 'मेरी दुकान', icon: '🧑‍🌾' },
 ]
 
 export default function SellerLayout() {

@@ -7,6 +7,8 @@ export default function AdminSellers() {
   const [sellers, setSellers] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('सभी')
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadSellers()
@@ -17,6 +19,26 @@ export default function AdminSellers() {
     const { data } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
     setSellers(data || [])
     setLoading(false)
+  }
+
+  async function saveSellerProfile(e) {
+    e.preventDefault()
+    if (!editing) return
+    setSaving(true)
+    const { error } = await supabase.from('sellers').update({
+      business_name: editing.business_name.trim(),
+      owner_name: editing.owner_name.trim(),
+      phone: editing.phone.trim(),
+      email: editing.email?.trim() || null,
+      photo_url: editing.photo_url?.trim() || null,
+    }).eq('id', editing.id)
+    setSaving(false)
+    if (error) {
+      alert(`प्रोफाइल सेव नहीं हुई: ${error.message}`)
+      return
+    }
+    setEditing(null)
+    loadSellers()
   }
 
   async function toggleApproval(seller) {
@@ -76,16 +98,22 @@ export default function AdminSellers() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-3 mt-2">
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => setEditing({ ...s })}
+                className="flex-1 text-xs font-bold py-2 rounded-lg border-2 border-kisan text-kisan"
+              >
+                प्रोफाइल संपादित करें
+              </button>
               <button
                 onClick={() => toggleApproval(s)}
-                className={`flex-1 text-xs font-bold py-2 rounded-lg ${s.is_approved ? 'border-2 border-red-400 text-red-500' : 'bg-kisan text-white'}`}
+                className={`text-xs font-bold py-2 px-3 rounded-lg ${s.is_approved ? 'border-2 border-red-400 text-red-500' : 'bg-kisan text-white'}`}
               >
                 {s.is_approved ? 'अप्रूवल हटाएं' : 'अप्रूव करें'}
               </button>
               <button
                 onClick={() => toggleActive(s)}
-                className={`flex-1 text-xs font-bold py-2 rounded-lg border-2 ${s.is_active ? 'border-red-400 text-red-500' : 'border-kisan text-kisan'}`}
+                className={`text-xs font-bold py-2 px-3 rounded-lg border-2 ${s.is_active ? 'border-red-400 text-red-500' : 'border-kisan text-kisan'}`}
               >
                 {s.is_active ? 'निष्क्रिय करें' : 'सक्रिय करें'}
               </button>
@@ -94,6 +122,35 @@ export default function AdminSellers() {
         ))}
         {filtered.length === 0 && <p className="text-gray-400 text-center py-16">इस श्रेणी में कोई विक्रेता नहीं</p>}
       </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end md:items-center justify-center p-3">
+          <form onSubmit={saveSellerProfile} className="bg-white rounded-2xl w-full max-w-lg p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-extrabold text-lg text-gray-800">विक्रेता प्रोफाइल संपादित करें</h2>
+                <p className="text-xs text-gray-400">यही प्रोफाइल ग्राहक ऐप में Vendor के रूप में दिखाई देगी</p>
+              </div>
+              <button type="button" onClick={() => setEditing(null)} className="text-gray-400 text-xl">×</button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Field label="दुकान/व्यवसाय का नाम"><input required className="input-field" value={editing.business_name || ''} onChange={e => setEditing({...editing,business_name:e.target.value})} /></Field>
+              <Field label="मालिक का नाम"><input required className="input-field" value={editing.owner_name || ''} onChange={e => setEditing({...editing,owner_name:e.target.value})} /></Field>
+              <Field label="मोबाइल नंबर"><input required inputMode="numeric" className="input-field" value={editing.phone || ''} onChange={e => setEditing({...editing,phone:e.target.value.replace(/\D/g,'').slice(0,10)})} /></Field>
+              <Field label="ईमेल"><input type="email" className="input-field" value={editing.email || ''} onChange={e => setEditing({...editing,email:e.target.value})} /></Field>
+              <Field label="प्रोफाइल फोटो URL"><input className="input-field" value={editing.photo_url || ''} onChange={e => setEditing({...editing,photo_url:e.target.value})} placeholder="https://..." /></Field>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button type="button" onClick={() => setEditing(null)} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 font-bold text-gray-600">रद्द करें</button>
+              <button type="submit" disabled={saving} className="flex-1 btn-primary">{saving ? 'सेव हो रहा है...' : 'सेव करें'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
+}
+
+function Field({ label, children }) {
+  return <div><label className="block text-sm font-semibold text-gray-600 mb-1">{label}</label>{children}</div>
 }

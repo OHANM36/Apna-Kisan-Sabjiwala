@@ -46,6 +46,9 @@ export default function Cart() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-gray-800 text-sm truncate">{item.name}</h3>
+                {item.sellerName && (
+                  <p className="text-[11px] text-gray-400 font-semibold">🧑‍🌾 {item.sellerName}</p>
+                )}
                 <p className="text-gray-500 text-xs">{formatRupee(item.price)} / {item.unit}</p>
                 <p className="text-kisan font-bold text-sm mt-0.5">{formatRupee(item.price * item.quantity)}</p>
               </div>

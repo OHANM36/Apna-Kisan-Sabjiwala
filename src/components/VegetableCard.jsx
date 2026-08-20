@@ -37,6 +37,7 @@ export default function VegetableCard({ veg }) {
       id: tierCartId(veg.id, selectedTier),
       vegetableId: veg.id,
       sellerId: veg.seller_id || null,
+      sellerName: veg.sellers?.business_name || null,
       name: veg.name,
       emoji: veg.emoji,
       image_url: veg.image_url,
@@ -67,6 +68,11 @@ export default function VegetableCard({ veg }) {
       </div>
       <div className="p-3 flex flex-col gap-1 flex-1">
         <h3 className="font-bold text-gray-800 text-[15px] leading-tight">{veg.name}</h3>
+        {veg.sellers?.business_name && (
+          <p className="text-[11px] text-gray-400 font-semibold flex items-center gap-1">
+            🧑‍🌾 {veg.sellers.business_name}
+          </p>
+        )}
 
         {!tiers ? (
           <p className="text-kisan font-extrabold text-lg">

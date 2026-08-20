@@ -50,6 +50,26 @@ npm run dev
 1. Supabase Dashboard → **Storage** → **New bucket**
 2. नाम रखें: `vegetable-images`
 3. **Public bucket** को ✅ चालू करें (ताकि फोटो ऐप में दिख सकें)
+4. Bucket बनाने के बाद भी अपलोड की अनुमति के लिए **SQL Editor** में यह ज़रूर चलाएं
+   (Public toggle सिर्फ फोटो *देखने* की अनुमति देता है, *अपलोड* करने की अनुमति अलग से चाहिए):
+
+```sql
+create policy "Public read for vegetable-images"
+on storage.objects for select
+using (bucket_id = 'vegetable-images');
+
+create policy "Authenticated upload for vegetable-images"
+on storage.objects for insert
+with check (bucket_id = 'vegetable-images' and auth.role() = 'authenticated');
+
+create policy "Authenticated update for vegetable-images"
+on storage.objects for update
+using (bucket_id = 'vegetable-images' and auth.role() = 'authenticated');
+
+create policy "Authenticated delete for vegetable-images"
+on storage.objects for delete
+using (bucket_id = 'vegetable-images' and auth.role() = 'authenticated');
+```
 
 ### एडमिन यूज़र कैसे बनाएं
 1. Supabase Dashboard → **Authentication → Users → Add user**
@@ -155,7 +175,41 @@ where id = 1;
 
 ---
 
-## 8️⃣ आगे क्या जोड़ सकते हैं (वैकल्पिक सुधार)
+## 8️⃣ साउंड नोटिफिकेशन (नया ऑर्डर + स्थिति बदलने पर)
+
+एडमिन पैनल में अब नया ऑर्डर आने पर और ऑर्डर की स्थिति/भुगतान बदलने पर अपने आप साउंड और एक छोटा नोटिफिकेशन (toast) दिखता है — चाहे एडमिन किसी भी पेज पर हो। इसके लिए **Supabase Realtime** चालू करना ज़रूरी है:
+
+1. Supabase Dashboard → **Database → Replication** में जाएं
+2. `orders` टेबल को ढूंढकर उसके सामने का टॉगल **चालू (ON)** करें
+3. पुरानी और नई value की तुलना करने के लिए (जैसे order_status बदलने से पहले/बाद की value पहचानने के लिए) SQL Editor में यह भी चलाएं:
+
+```sql
+alter table orders replica identity full;
+```
+
+इसके बिना नोटिफिकेशन काम नहीं करेगा या स्थिति बदलने पर टोस्ट सही जानकारी नहीं दिखाएगा।
+
+**ध्यान रहे:** ब्राउज़र की autoplay नीति के कारण, पेज खुलते ही पहला साउंड कभी-कभी न बजे — एडमिन के एक बार पेज पर क्लिक करने के बाद यह सामान्य रूप से काम करता है।
+
+---
+
+## 9️⃣ मल्टी-वेंडर मार्केटप्लेस (अलग-अलग विक्रेता)
+
+अब कई विक्रेता (seller) खुद रजिस्टर करके अपनी सब्ज़ियाँ बेच सकते हैं। हर विक्रेता सिर्फ अपनी सब्ज़ियाँ और अपने ऑर्डर देख सकता है; एडमिन सबको मैनेज कर सकता है।
+
+### कैसे काम करता है
+- **विक्रेता खाता बनाना:** `/seller/signup` पर जाकर कोई भी विक्रेता अपना व्यवसाय, नाम, फोन, ईमेल-पासवर्ड डालकर आवेदन कर सकता है
+- **एडमिन अप्रूवल:** नया विक्रेता तब तक अपनी सब्ज़ियाँ ग्राहकों को नहीं दिखा सकता जब तक एडमिन पैनल → **विक्रेता** पेज से उसे अप्रूव न करे
+- **विक्रेता पैनल:** अप्रूव होने के बाद `/seller/login` से लॉगिन करके विक्रेता अपनी सब्ज़ियाँ जोड़/बदल सकता है और सिर्फ अपनी सब्ज़ियों वाले ऑर्डर देख सकता है (`/seller` — डैशबोर्ड, मेरी सब्ज़ियाँ, मेरे ऑर्डर)
+- **कीमत/स्थिति/ऑर्डर की पूरी प्रक्रिया** अब भी एडमिन के हाथ में रहती है — विक्रेता सिर्फ प्रोडक्ट जोड़ता है और अपने ऑर्डर देखता है, ऑर्डर की स्थिति नहीं बदल सकता
+
+### ज़रूरी सेटअप
+1. Supabase Authentication में **"Confirm email" बंद रखें** (Authentication → Providers → Email → "Confirm email" टॉगल बंद करें), वरना विक्रेता साइन-अप के तुरंत बाद अपने आप लॉगिन नहीं हो पाएगा और प्रोफाइल नहीं बन पाएगी
+2. अगर आपने पहले schema.sql चला रखी है, तो `supabase/schema.sql` फाइल के आखिर में मौजूद **"मल्टी-वेंडर मार्केटप्लेस"** वाला MIGRATION हिस्सा SQL Editor में चलाएं
+
+---
+
+## 🔟 आगे क्या जोड़ सकते हैं (वैकल्पिक सुधार)
 
 - बिल PDF डाउनलोड/प्रिंट सुविधा
 - एडमिन पैनल से WhatsApp नंबर व डिलीवरी सेटिंग बदलने का UI पेज
@@ -166,3 +220,21 @@ where id = 1;
 
 किसी भी समस्या के लिए Supabase Dashboard के Logs (Database → Logs) ज़रूर जांचें — ज़्यादातर समस्याएं
 गलत `.env` जानकारी या RLS पॉलिसी न चलने की वजह से होती हैं।
+
+## Vendor ↔ Seller Profile association
+
+The customer-facing Vendor directory now uses the same `sellers` profile managed from **Admin → Sellers**. There is no separate vendor table.
+
+Relationship:
+
+- `sellers.id` = vendor/seller identity
+- `vegetables.seller_id` → `sellers.id`
+- `order_items.seller_id` → `sellers.id`
+- Customer `/vendors` shows only approved + active seller profiles
+- Customer `/vendors/:vendorId` shows that seller's active vegetables
+- Admin can edit the seller profile used by the customer Vendor directory
+- Seller can edit their own profile at `/seller/profile`
+
+### Supabase migration
+
+Run `supabase/vendor_seller_association.sql` after the main `supabase/schema.sql`. This adds the public approved/active seller read policy and indexes required for the association.
