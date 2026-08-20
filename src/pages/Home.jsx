@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
 import CategoryChips from '../components/CategoryChips'
@@ -32,7 +32,7 @@ export default function Home() {
     const [{ data: vegs }, { data: cats }, { data: offs }] = await Promise.all([
       supabase
         .from('vegetables')
-        .select('*, categories(name, slug)')
+        .select('*, categories(name, slug), sellers(business_name, photo_url)')
         .eq('is_active', true)
         .order('display_order'),
       supabase.from('categories').select('*').eq('is_active', true).order('display_order'),
@@ -85,6 +85,18 @@ export default function Home() {
       </div>
 
       <CategoryChips categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} />
+
+      <div className="px-4 pb-1">
+        <Link
+          to="/vendors"
+          className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 active:scale-95 transition-transform"
+        >
+          <span className="flex items-center gap-2 font-bold text-gray-700 text-sm">
+            🧑‍🌾 हमारे विक्रेता देखें
+          </span>
+          <span className="text-kisan text-sm font-bold">→</span>
+        </Link>
+      </div>
 
       <div className="px-4">
         <h2 className="font-bold text-gray-800 mb-3">

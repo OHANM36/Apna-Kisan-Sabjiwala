@@ -5,6 +5,8 @@ import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import OrderConfirmation from './pages/OrderConfirmation'
 import OrderHistory from './pages/OrderHistory'
+import Vendors from './pages/Vendors'
+import VendorDetail from './pages/VendorDetail'
 import BottomNav from './components/BottomNav'
 import FloatingCallButton from './components/FloatingCallButton'
 import WelcomePopup from './components/WelcomePopup'
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
         <Route path="/orders" element={<OrderHistory />} />
+        <Route path="/vendors" element={<Vendors />} />
+        <Route path="/vendors/:vendorId" element={<VendorDetail />} />
 
         {/* एडमिन पैनल */}
         <Route
