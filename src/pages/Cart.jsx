@@ -31,7 +31,7 @@ export default function Cart() {
   return (
     <div className="min-h-screen pb-40">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-3">आपका कार्ट</h2>
 
         <div className="flex flex-col gap-3">

@@ -53,7 +53,7 @@ export default function OrderHistory() {
   return (
     <div className="min-h-screen pb-24">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-3">मेरे ऑर्डर</h2>
 
         <div className="flex gap-2 mb-4">

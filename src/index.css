@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 html, body {
-  font-family: 'Noto Sans Devanagari', 'Poppins', sans-serif;
-  background-color: #f4faf3;
+  font-family: 'Mukta', 'Noto Sans Devanagari', sans-serif;
+  background-color: #FBF6EC;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -13,27 +13,57 @@ html, body {
   display: none;
 }
 
+/* हेडिंग/कीमतों के लिए राउंडेड, दोस्ताना डिस्प्ले फॉन्ट */
+.font-display {
+  font-family: "Baloo 2", "Mukta", sans-serif;
+}
+
 .btn-primary {
-  @apply bg-kisan text-white font-bold py-3 px-6 rounded-xl active:scale-95 transition-transform shadow-md disabled:opacity-50 disabled:active:scale-100;
+  @apply bg-kisan text-white font-bold py-3 px-6 rounded-2xl active:scale-95 transition-transform shadow-sm disabled:opacity-50 disabled:active:scale-100;
 }
 
 .btn-outline {
-  @apply border-2 border-kisan text-kisan font-bold py-3 px-6 rounded-xl active:scale-95 transition-transform disabled:opacity-50;
+  @apply border-2 border-kisan text-kisan font-bold py-3 px-6 rounded-2xl active:scale-95 transition-transform disabled:opacity-50;
 }
 
 .card {
-  @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+  @apply bg-white rounded-2xl shadow-sm border border-kisan-crate;
 }
 
 .input-field {
-  @apply w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-kisan focus:outline-none;
+  @apply w-full border-2 border-kisan-crate rounded-2xl px-4 py-3 text-base focus:border-kisan focus:outline-none transition-colors;
 }
 
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* सिग्नेचर एलिमेंट: सब्ज़ी की टोकरी में बिछे कागज़ जैसा लहरदार (scalloped) किनारा */
+.scallop-edge {
+  height: 14px;
+  margin-top: -1px;
+  background:
+    radial-gradient(circle at 10px 0, transparent 11px, #ffffff 12px) repeat-x;
+  background-size: 20px 20px;
+  background-position: top;
+}
+
+/* header के नीचे हल्का बेल-पत्ती जैसा पैटर्न (बहुत हल्का, ध्यान न भटकाए) */
+.vine-pattern {
+  background-image: radial-gradient(circle at 18px 18px, rgba(255,255,255,0.06) 3px, transparent 3px);
+  background-size: 36px 36px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* कम-मोशन प्राथमिकता का सम्मान */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

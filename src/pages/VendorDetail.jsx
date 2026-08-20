@@ -67,7 +67,7 @@ export default function VendorDetail() {
   return (
     <div className="min-h-screen pb-24">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <Link to="/vendors" className="text-kisan text-sm font-bold mb-3 inline-block">← सभी विक्रेता</Link>
 
         <div className="flex items-center gap-3 mb-5">

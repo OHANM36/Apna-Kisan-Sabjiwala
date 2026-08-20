@@ -27,7 +27,7 @@ export default function Vendors() {
   return (
     <div className="min-h-screen pb-24">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-1">हमारे विक्रेता</h2>
         <p className="text-gray-500 text-sm mb-4">किसी विक्रेता पर टैप करके उसकी सब्ज़ियाँ देखें</p>
 

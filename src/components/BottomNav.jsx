@@ -45,7 +45,7 @@ export default function BottomNav() {
   const { totalItems } = useCart()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-kisan-crate safe-bottom">
       <div className="flex justify-around items-center max-w-lg mx-auto">
         {navItems.map((item) => (
           <NavLink
@@ -63,7 +63,7 @@ export default function BottomNav() {
                 <div className="relative">
                   {item.icon(isActive)}
                   {item.badge && totalItems > 0 && (
-                    <span className="absolute -top-1.5 -right-2 bg-kisan-orange text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2 bg-kisan-orange text-kisan-ink text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                       {totalItems}
                     </span>
                   )}

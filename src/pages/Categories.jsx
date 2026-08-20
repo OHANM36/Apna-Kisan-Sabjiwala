@@ -35,7 +35,7 @@ export default function Categories() {
   return (
     <div className="min-h-screen pb-24">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-4">सब्ज़ियों की श्रेणियाँ</h2>
         {loading ? (
           <Loading />

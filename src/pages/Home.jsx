@@ -98,8 +98,8 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="px-4">
-        <h2 className="font-bold text-gray-800 mb-3">
+      <div className="px-4 animate-fade-slide-in">
+        <h2 className="font-display font-bold text-kisan-ink mb-3">
           {search ? `खोज परिणाम "${search}"` : 'आज की उपलब्ध सब्ज़ियाँ'}
         </h2>
 

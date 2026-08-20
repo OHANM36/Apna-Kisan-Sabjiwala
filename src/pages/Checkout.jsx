@@ -238,7 +238,7 @@ export default function Checkout() {
   return (
     <div className="min-h-screen pb-40">
       <Header />
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-4">डिलीवरी की जानकारी</h2>
 
         <div className="flex flex-col gap-3">

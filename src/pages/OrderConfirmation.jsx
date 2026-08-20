@@ -36,7 +36,7 @@ export default function OrderConfirmation() {
   return (
     <div className="min-h-screen pb-28">
       <Header />
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 animate-fade-slide-in">
         <div className="flex flex-col items-center text-center mb-6">
           <span className="text-6xl mb-2">✅</span>
           <h2 className="font-extrabold text-xl text-gray-800">आपका ऑर्डर सफलतापूर्वक दर्ज हो गया है।</h2>
