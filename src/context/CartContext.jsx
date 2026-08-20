@@ -18,6 +18,9 @@ export function CartProvider({ children }) {
   }, [items])
 
   function addToCart(vegetable, qty = 1) {
+    // vegetable.id: cart-line की unique id (tiered आइटम के लिए vegetableId से अलग हो सकती है)
+    // vegetable.vegetableId: असली सब्ज़ी की id (डेटाबेस में order_items के लिए ज़रूरी)
+    const vegetableId = vegetable.vegetableId || vegetable.id
     setItems((prev) => {
       const existing = prev.find((i) => i.id === vegetable.id)
       if (existing) {
@@ -29,6 +32,8 @@ export function CartProvider({ children }) {
         ...prev,
         {
           id: vegetable.id,
+          vegetableId,
+          sellerId: vegetable.sellerId || vegetable.seller_id || null,
           name: vegetable.name,
           emoji: vegetable.emoji,
           image_url: vegetable.image_url,

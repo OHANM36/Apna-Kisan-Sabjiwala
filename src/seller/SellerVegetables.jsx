@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { useSellerAuth } from '../context/SellerAuthContext'
 import { formatRupee } from '../utils/format'
 import Loading from '../components/Loading'
 
 const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
-const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
+const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध' }
 
-export default function AdminVegetables() {
+export default function SellerVegetables() {
+  const { session } = useSellerAuth()
+  const sellerId = session.user.id
+
   const [vegetables, setVegetables] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +26,7 @@ export default function AdminVegetables() {
   async function loadData() {
     setLoading(true)
     const [{ data: vegs }, { data: cats }] = await Promise.all([
-      supabase.from('vegetables').select('*, categories(name)').order('display_order'),
+      supabase.from('vegetables').select('*, categories(name)').eq('seller_id', sellerId).order('display_order'),
       supabase.from('categories').select('*').order('display_order'),
     ])
     setVegetables(vegs || [])
@@ -45,7 +49,6 @@ export default function AdminVegetables() {
       emoji: veg.emoji || '🥬',
       image_url: veg.image_url || '',
       stock_status: veg.stock_status,
-      price_tiers: Array.isArray(veg.price_tiers) ? veg.price_tiers : [],
     })
     setShowForm(true)
   }
@@ -60,32 +63,14 @@ export default function AdminVegetables() {
       const { data } = supabase.storage.from('vegetable-images').getPublicUrl(fileName)
       setForm((f) => ({ ...f, image_url: data.publicUrl }))
     } else {
-      alert('फोटो अपलोड नहीं हो सकी। कृपया "vegetable-images" नाम का Storage bucket बनाएं (देखें README)।')
+      alert('फोटो अपलोड नहीं हो सकी। कृपया एडमिन से "vegetable-images" Storage bucket जांचने को कहें।')
     }
     setUploading(false)
-  }
-
-  function addTierRow() {
-    setForm((f) => ({ ...f, price_tiers: [...f.price_tiers, { qty: '', unit: f.unit, price: '' }] }))
-  }
-
-  function updateTierRow(idx, key, value) {
-    setForm((f) => ({
-      ...f,
-      price_tiers: f.price_tiers.map((t, i) => (i === idx ? { ...t, [key]: value } : t)),
-    }))
-  }
-
-  function removeTierRow(idx) {
-    setForm((f) => ({ ...f, price_tiers: f.price_tiers.filter((_, i) => i !== idx) }))
   }
 
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    const cleanTiers = form.price_tiers
-      .filter((t) => t.qty !== '' && t.price !== '')
-      .map((t) => ({ qty: Number(t.qty), unit: t.unit, price: Number(t.price) }))
     const payload = {
       name: form.name,
       category_id: form.category_id || null,
@@ -94,10 +79,10 @@ export default function AdminVegetables() {
       emoji: form.emoji,
       image_url: form.image_url || null,
       stock_status: form.stock_status,
-      price_tiers: cleanTiers.length > 0 ? cleanTiers : null,
+      seller_id: sellerId,
     }
     if (form.id) {
-      await supabase.from('vegetables').update(payload).eq('id', form.id)
+      await supabase.from('vegetables').update(payload).eq('id', form.id).eq('seller_id', sellerId)
     } else {
       await supabase.from('vegetables').insert(payload)
     }
@@ -108,13 +93,13 @@ export default function AdminVegetables() {
 
   async function toggleStock(veg) {
     const newStatus = veg.stock_status === 'उपलब्ध' ? 'अनुपलब्ध' : 'उपलब्ध'
-    await supabase.from('vegetables').update({ stock_status: newStatus }).eq('id', veg.id)
+    await supabase.from('vegetables').update({ stock_status: newStatus }).eq('id', veg.id).eq('seller_id', sellerId)
     loadData()
   }
 
   async function handleDelete(veg) {
     if (!confirm(`क्या आप वाकई "${veg.name}" हटाना चाहते हैं?`)) return
-    await supabase.from('vegetables').delete().eq('id', veg.id)
+    await supabase.from('vegetables').delete().eq('id', veg.id).eq('seller_id', sellerId)
     loadData()
   }
 
@@ -123,7 +108,7 @@ export default function AdminVegetables() {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <h1 className="font-extrabold text-xl text-gray-800">सब्ज़ी प्रबंधन</h1>
+        <h1 className="font-extrabold text-xl text-gray-800">मेरी सब्ज़ियाँ</h1>
         <button onClick={openNew} className="btn-primary py-2 px-4 text-sm">+ नई सब्ज़ी जोड़ें</button>
       </div>
 
@@ -146,14 +131,7 @@ export default function AdminVegetables() {
                   <span className="font-semibold text-gray-800">{v.name}</span>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{v.categories?.name || '-'}</td>
-                <td className="px-4 py-3 font-semibold">
-                  {formatRupee(v.price)} / {v.unit}
-                  {Array.isArray(v.price_tiers) && v.price_tiers.length > 0 && (
-                    <span className="ml-1 text-[10px] bg-kisan/10 text-kisan font-bold px-1.5 py-0.5 rounded-full align-middle">
-                      {v.price_tiers.length} रेट
-                    </span>
-                  )}
-                </td>
+                <td className="px-4 py-3 font-semibold">{formatRupee(v.price)} / {v.unit}</td>
                 <td className="px-4 py-3">
                   <button
                     onClick={() => toggleStock(v)}
@@ -172,6 +150,11 @@ export default function AdminVegetables() {
                 </td>
               </tr>
             ))}
+            {vegetables.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center text-gray-400 py-10">अभी तक कोई सब्ज़ी नहीं जोड़ी</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -225,49 +208,6 @@ export default function AdminVegetables() {
                   <option value="अनुपलब्ध">अनुपलब्ध</option>
                 </select>
               </div>
-
-              <div className="border-t border-gray-200 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-gray-600">
-                    मात्रा के हिसाब से अलग कीमत (वैकल्पिक)
-                  </label>
-                  <button type="button" onClick={addTierRow} className="text-kisan text-xs font-bold">+ रेट जोड़ें</button>
-                </div>
-                <p className="text-xs text-gray-400 mb-2">
-                  खाली छोड़ें तो ऊपर वाली सामान्य कीमत ही इस्तेमाल होगी। भरने पर ग्राहक को माप चुनने का विकल्प मिलेगा।
-                </p>
-                {form.price_tiers.map((t, idx) => (
-                  <div key={idx} className="flex gap-2 mb-2 items-center">
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="मात्रा"
-                      className="input-field py-1.5 flex-1"
-                      value={t.qty}
-                      onChange={(e) => updateTierRow(idx, 'qty', e.target.value)}
-                    />
-                    <select
-                      className="input-field py-1.5 flex-1"
-                      value={t.unit}
-                      onChange={(e) => updateTierRow(idx, 'unit', e.target.value)}
-                    >
-                      {UNITS.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="कीमत ₹"
-                      className="input-field py-1.5 flex-1"
-                      value={t.price}
-                      onChange={(e) => updateTierRow(idx, 'price', e.target.value)}
-                    />
-                    <button type="button" onClick={() => removeTierRow(idx)} className="text-red-500 text-lg font-bold px-1">×</button>
-                  </div>
-                ))}
-              </div>
-
               <div className="flex gap-3 mt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="btn-outline flex-1">रद्द करें</button>
                 <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'सेव हो रहा है...' : 'सेव करें'}</button>

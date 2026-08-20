@@ -180,12 +180,13 @@ export default function Checkout() {
       // 3. ऑर्डर की वस्तुएँ (items) सेव करें
       const orderItems = items.map((i) => ({
         order_id: order.id,
-        vegetable_id: i.id,
+        vegetable_id: i.vegetableId || i.id,
         vegetable_name: i.name,
         unit: i.unit,
         price: i.price,
         quantity: i.quantity,
         item_total: i.price * i.quantity,
+        seller_id: i.sellerId || null,
       }))
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) throw itemsErr
