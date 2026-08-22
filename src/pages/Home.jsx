@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
-import CategoryChips from '../components/CategoryChips'
+import CategorySidebar from '../components/CategorySidebar'
 import VegetableCard from '../components/VegetableCard'
 import Loading from '../components/Loading'
 import { useSettings } from '../context/SettingsContext'
@@ -62,61 +62,66 @@ export default function Home() {
         </div>
       )}
 
-      {offers.length > 0 && (
-        <div className="px-4 pt-3">
-          {offers.slice(0, 1).map((o) => (
-            <div key={o.id} className="bg-gradient-to-r from-kisan-orange to-orange-400 text-white rounded-2xl p-4 shadow-md">
-              <p className="font-extrabold text-base">🎉 {o.title}</p>
-              {o.description && <p className="text-xs mt-0.5 opacity-90">{o.description}</p>}
-              {o.coupon_code && (
-                <p className="text-xs mt-1 bg-white/20 inline-block px-2 py-0.5 rounded font-bold">
-                  कोड: {o.coupon_code}
-                </p>
-              )}
+      {/* बाईं तरफ श्रेणी sidebar + दाईं तरफ मुख्य कंटेंट — quick-commerce शैली लेआउट */}
+      <div className="flex items-start">
+        <CategorySidebar categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} />
+
+        <div className="flex-1 min-w-0">
+          {offers.length > 0 && (
+            <div className="px-3 pt-3">
+              {offers.slice(0, 1).map((o) => (
+                <div key={o.id} className="bg-gradient-to-r from-kisan-orange to-orange-400 text-white rounded-2xl p-3 shadow-md">
+                  <p className="font-display font-bold text-sm">🎉 {o.title}</p>
+                  {o.description && <p className="text-[11px] mt-0.5 opacity-90">{o.description}</p>}
+                  {o.coupon_code && (
+                    <p className="text-[11px] mt-1 bg-white/20 inline-block px-2 py-0.5 rounded font-bold">
+                      कोड: {o.coupon_code}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      <div className="px-4 pt-3">
-        <div className="bg-kisan-dark/5 border border-kisan/20 rounded-xl px-4 py-2.5 text-sm text-kisan-dark font-semibold">
-          न्यूनतम ऑर्डर: {formatRupee(settings.min_order_value)} • डिलीवरी शुल्क: {formatRupee(settings.delivery_fee)}
-        </div>
-      </div>
-
-      <CategoryChips categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} />
-
-      <div className="px-4 pb-1">
-        <Link
-          to="/vendors"
-          className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 active:scale-95 transition-transform"
-        >
-          <span className="flex items-center gap-2 font-bold text-gray-700 text-sm">
-            🧑‍🌾 हमारे विक्रेता देखें
-          </span>
-          <span className="text-kisan text-sm font-bold">→</span>
-        </Link>
-      </div>
-
-      <div className="px-4 animate-fade-slide-in">
-        <h2 className="font-display font-bold text-kisan-ink mb-3">
-          {search ? `खोज परिणाम "${search}"` : 'आज की उपलब्ध सब्ज़ियाँ'}
-        </h2>
-
-        {loading ? (
-          <Loading text="सब्ज़ियाँ लोड हो रही हैं..." />
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-5xl mb-3">🔍</p>
-            <p className="text-gray-500 font-medium">कोई सब्ज़ी नहीं मिली</p>
+          <div className="px-3 pt-3">
+            <div className="bg-kisan-dark/5 border border-kisan/20 rounded-xl px-3 py-2 text-xs text-kisan-dark font-semibold">
+              न्यूनतम ऑर्डर: {formatRupee(settings.min_order_value)} • डिलीवरी शुल्क: {formatRupee(settings.delivery_fee)}
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2.5 pb-4">
-            {filtered.map((veg) => (
-              <VegetableCard key={veg.id} veg={veg} />
-            ))}
+
+          <div className="px-3 pt-2 pb-1">
+            <Link
+              to="/vendors"
+              className="flex items-center justify-between bg-white border border-kisan-crate rounded-xl px-3 py-2.5 active:scale-95 transition-transform"
+            >
+              <span className="flex items-center gap-1.5 font-bold text-gray-700 text-xs">
+                🧑‍🌾 हमारे विक्रेता देखें
+              </span>
+              <span className="text-kisan text-xs font-bold">→</span>
+            </Link>
           </div>
-        )}
+
+          <div className="px-3 animate-fade-slide-in">
+            <h2 className="font-display font-bold text-kisan-ink text-sm mb-2">
+              {search ? `खोज परिणाम "${search}"` : 'आज की उपलब्ध सब्ज़ियाँ'}
+            </h2>
+
+            {loading ? (
+              <Loading text="सब्ज़ियाँ लोड हो रही हैं..." />
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-5xl mb-3">🔍</p>
+                <p className="text-gray-500 font-medium">कोई सब्ज़ी नहीं मिली</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5 pb-4">
+                {filtered.map((veg) => (
+                  <VegetableCard key={veg.id} veg={veg} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

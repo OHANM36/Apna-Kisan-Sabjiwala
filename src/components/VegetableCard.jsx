@@ -28,6 +28,10 @@ export default function VegetableCard({ veg }) {
   const selectedTierCartId = selectedTier ? tierCartId(veg.id, selectedTier) : null
   const inCartTiered = selectedTierCartId ? items.find((i) => i.id === selectedTierCartId) : null
 
+  // MRP से छूट % निकालें (सिर्फ बिना-tier सब्ज़ी के लिए, mrp स्तर पर लागू)
+  const hasDiscount = !tiers && veg.mrp && Number(veg.mrp) > Number(veg.price)
+  const discountPercent = hasDiscount ? Math.round((1 - Number(veg.price) / Number(veg.mrp)) * 100) : 0
+
   function handleAddSimple() {
     addToCart(veg)
     flashAdded()
@@ -63,10 +67,16 @@ export default function VegetableCard({ veg }) {
   return (
     <div className="card overflow-hidden flex flex-col">
       <div className="relative aspect-square bg-kisan-crate/40 flex items-center justify-center">
+        {hasDiscount && (
+          <span className="absolute top-1.5 left-1.5 bg-kisan-tomato text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-tight z-10">
+            {discountPercent}% छूट
+          </span>
+        )}
         {veg.image_url ? (
           <img src={veg.image_url} alt={veg.name} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <VeggieCharacter name={veg.name} className="w-16 h-16" />        )}
+          <VeggieCharacter name={veg.name} className="w-16 h-16" />
+        )}
         {unavailable && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
             <span className="bg-kisan-ink text-white text-xs font-bold px-3 py-1 rounded-full">अनुपलब्ध</span>
@@ -77,6 +87,9 @@ export default function VegetableCard({ veg }) {
       <div className="scallop-edge" aria-hidden="true" />
 
       <div className="p-2 pt-1.5 flex flex-col gap-0.5 flex-1">
+        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-kisan bg-kisan/10 px-1.5 py-0.5 rounded-md w-fit">
+          🌿 ताज़ा
+        </span>
         <h3 className="font-display font-semibold text-kisan-ink text-[12.5px] leading-tight line-clamp-1">{veg.name}</h3>
         {veg.sellers?.business_name && (
           <p className="text-[9px] text-gray-400 font-semibold flex items-center gap-0.5 line-clamp-1">
@@ -85,8 +98,12 @@ export default function VegetableCard({ veg }) {
         )}
 
         {!tiers ? (
-          <p className="font-display text-kisan font-bold text-sm">
-            {formatRupee(veg.price)} <span className="font-sans text-[10px] text-gray-500 font-medium">/ {veg.unit}</span>
+          <p className="font-display text-kisan font-bold text-sm flex items-baseline gap-1 flex-wrap">
+            {formatRupee(veg.price)}
+            {hasDiscount && (
+              <span className="font-sans text-[10px] text-gray-400 font-medium line-through">{formatRupee(veg.mrp)}</span>
+            )}
+            <span className="font-sans text-[10px] text-gray-500 font-medium">/ {veg.unit}</span>
           </p>
         ) : (
           <p className="font-display text-kisan font-bold text-sm">
@@ -115,8 +132,10 @@ export default function VegetableCard({ veg }) {
               <button
                 onClick={handleAddSimple}
                 disabled={unavailable}
-                className={`w-full py-1.5 rounded-lg font-bold text-[11px] transition-all active:scale-95 ${
-                  justAdded ? 'bg-kisan-orange text-kisan-ink' : 'bg-kisan text-white'
+                className={`w-full py-1.5 rounded-lg font-bold text-[11px] border-2 transition-all active:scale-95 ${
+                  justAdded
+                    ? 'bg-kisan-orange text-kisan-ink border-kisan-orange'
+                    : 'bg-white text-kisan border-kisan'
                 } disabled:opacity-40`}
               >
                 {unavailable ? 'अनुपलब्ध' : 'कार्ट में डालें'}
@@ -132,8 +151,10 @@ export default function VegetableCard({ veg }) {
             <button
               onClick={handleAddTiered}
               disabled={unavailable}
-              className={`w-full py-1.5 rounded-lg font-bold text-[11px] transition-all active:scale-95 ${
-                justAdded ? 'bg-kisan-orange text-kisan-ink' : 'bg-kisan text-white'
+              className={`w-full py-1.5 rounded-lg font-bold text-[11px] border-2 transition-all active:scale-95 ${
+                justAdded
+                  ? 'bg-kisan-orange text-kisan-ink border-kisan-orange'
+                  : 'bg-white text-kisan border-kisan'
               } disabled:opacity-40`}
             >
               {unavailable ? 'अनुपलब्ध' : 'कार्ट में डालें'}

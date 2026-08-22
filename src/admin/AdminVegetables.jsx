@@ -4,7 +4,7 @@ import { formatRupee } from '../utils/format'
 import Loading from '../components/Loading'
 
 const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
-const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
+const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', mrp: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
 
 export default function AdminVegetables() {
   const [vegetables, setVegetables] = useState([])
@@ -41,6 +41,7 @@ export default function AdminVegetables() {
       name: veg.name,
       category_id: veg.category_id || '',
       price: veg.price,
+      mrp: veg.mrp || '',
       unit: veg.unit,
       emoji: veg.emoji || '🥬',
       image_url: veg.image_url || '',
@@ -90,6 +91,7 @@ export default function AdminVegetables() {
       name: form.name,
       category_id: form.category_id || null,
       price: Number(form.price),
+      mrp: form.mrp !== '' ? Number(form.mrp) : null,
       unit: form.unit,
       emoji: form.emoji,
       image_url: form.image_url || null,
@@ -221,6 +223,10 @@ export default function AdminVegetables() {
                     ))}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">MRP / कटी हुई कीमत (वैकल्पिक)</label>
+                <input type="number" step="0.01" className="input-field" value={form.mrp} onChange={(e) => setForm({ ...form, mrp: e.target.value })} placeholder="जैसे 60 (कीमत से ज़्यादा हो तो % छूट अपने आप दिखेगी)" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">इमोजी (फोटो न हो तो दिखेगा)</label>
