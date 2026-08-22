@@ -230,7 +230,8 @@ export default function Checkout() {
       })
     } catch (err) {
       console.error(err)
-      setPaymentError('कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।')
+      const detail = err?.message || err?.error_description || ''
+      setPaymentError('कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' + (detail ? ` (${detail})` : ''))
       setSubmitting(false)
     }
   }
