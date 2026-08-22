@@ -37,11 +37,21 @@ export default {
           '0%': { transform: 'scale(1.15) rotate(-3deg)', opacity: '0' },
           '100%': { transform: 'scale(1) rotate(var(--tilt, 0deg))', opacity: '1' },
         },
+        veggieBob: {
+          '0%, 100%': { transform: 'translateY(0) rotate(-2deg)' },
+          '50%': { transform: 'translateY(-6px) rotate(2deg)' },
+        },
+        veggieBlink: {
+          '0%, 90%, 100%': { transform: 'scaleY(1)' },
+          '95%': { transform: 'scaleY(0.1)' },
+        },
       },
       animation: {
         'fade-slide-in': 'fadeSlideIn 0.35s ease-out both',
         'bump': 'bump 0.35s ease-out',
         'stamp-in': 'stampIn 0.3s ease-out both',
+        'veggie-bob': 'veggieBob 2.6s ease-in-out infinite',
+        'veggie-blink': 'veggieBlink 3.2s ease-in-out infinite',
       },
     },
   },

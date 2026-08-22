@@ -363,7 +363,9 @@ create policy "admin_users_admin_write" on admin_users for insert with check (is
 create policy "admin_users_admin_update" on admin_users for update using (is_admin());
 
 -- ---------- sellers: विक्रेता खुद अपना प्रोफाइल देख/अपडेट कर सके, एडमिन सबको देख/approve कर सके ----------
-create policy "sellers_self_read" on sellers for select using (auth.uid() = id or is_admin());
+create policy "sellers_self_read" on sellers for select using (
+  auth.uid() = id or is_admin() or (is_approved = true and is_active = true)
+);
 create policy "sellers_self_signup" on sellers for insert with check (auth.uid() = id);
 create policy "sellers_self_update" on sellers for update using (auth.uid() = id or is_admin());
 create policy "sellers_admin_delete" on sellers for delete using (is_admin());
@@ -477,7 +479,9 @@ on conflict do nothing;
 -- alter table order_items add column if not exists seller_id uuid references sellers(id) on delete set null;
 
 -- alter table sellers enable row level security;
--- create policy "sellers_self_read" on sellers for select using (auth.uid() = id or is_admin());
+-- create policy "sellers_self_read" on sellers for select using (
+--   auth.uid() = id or is_admin() or (is_approved = true and is_active = true)
+-- );
 -- create policy "sellers_self_signup" on sellers for insert with check (auth.uid() = id);
 -- create policy "sellers_self_update" on sellers for update using (auth.uid() = id or is_admin());
 -- create policy "sellers_admin_delete" on sellers for delete using (is_admin());

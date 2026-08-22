@@ -96,25 +96,39 @@ export default function AdminVegetables() {
       stock_status: form.stock_status,
       price_tiers: cleanTiers.length > 0 ? cleanTiers : null,
     }
+    let error
     if (form.id) {
-      await supabase.from('vegetables').update(payload).eq('id', form.id)
+      ;({ error } = await supabase.from('vegetables').update(payload).eq('id', form.id))
     } else {
-      await supabase.from('vegetables').insert(payload)
+      ;({ error } = await supabase.from('vegetables').insert(payload))
     }
     setSaving(false)
+    if (error) {
+      console.error('सब्ज़ी सेव नहीं हो सकी:', error)
+      alert('सेव नहीं हो सका: ' + error.message)
+      return
+    }
     setShowForm(false)
     loadData()
   }
 
   async function toggleStock(veg) {
     const newStatus = veg.stock_status === 'उपलब्ध' ? 'अनुपलब्ध' : 'उपलब्ध'
-    await supabase.from('vegetables').update({ stock_status: newStatus }).eq('id', veg.id)
+    const { error } = await supabase.from('vegetables').update({ stock_status: newStatus }).eq('id', veg.id)
+    if (error) {
+      alert('स्थिति नहीं बदल सकी: ' + error.message)
+      return
+    }
     loadData()
   }
 
   async function handleDelete(veg) {
     if (!confirm(`क्या आप वाकई "${veg.name}" हटाना चाहते हैं?`)) return
-    await supabase.from('vegetables').delete().eq('id', veg.id)
+    const { error } = await supabase.from('vegetables').delete().eq('id', veg.id)
+    if (error) {
+      alert('हटाया नहीं जा सका: ' + error.message)
+      return
+    }
     loadData()
   }
 

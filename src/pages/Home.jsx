@@ -111,7 +111,7 @@ export default function Home() {
             <p className="text-gray-500 font-medium">कोई सब्ज़ी नहीं मिली</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 pb-4">
+          <div className="grid grid-cols-3 gap-2.5 pb-4">
             {filtered.map((veg) => (
               <VegetableCard key={veg.id} veg={veg} />
             ))}

@@ -91,7 +91,7 @@ export default function VendorDetail() {
             <p className="text-gray-500 font-medium">इस विक्रेता के पास अभी कोई सब्ज़ी उपलब्ध नहीं है</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             {vegetables.map((veg) => (
               <VegetableCard key={veg.id} veg={veg} />
             ))}
