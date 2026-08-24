@@ -1,12 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
+import { useLanguage } from '../context/LanguageContext'
 import Header from '../components/Header'
 import { formatRupee } from '../utils/format'
 
 export default function Cart() {
   const { items, increaseQty, decreaseQty, removeFromCart, subtotal } = useCart()
   const { settings } = useSettings()
+  const { t } = useLanguage()
   const navigate = useNavigate()
 
   const belowMin = subtotal < settings.min_order_value
@@ -20,9 +22,9 @@ export default function Cart() {
         <Header />
         <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
           <span className="text-7xl mb-4">🛒</span>
-          <h2 className="font-bold text-gray-700 text-lg mb-1">आपका कार्ट खाली है</h2>
-          <p className="text-gray-500 text-sm mb-6">कुछ ताज़ी सब्ज़ियाँ जोड़ें और ऑर्डर करें</p>
-          <Link to="/" className="btn-primary">सब्ज़ियाँ देखें</Link>
+          <h2 className="font-bold text-gray-700 text-lg mb-1">{t('cart_empty_title')}</h2>
+          <p className="text-gray-500 text-sm mb-6">{t('cart_empty_subtitle')}</p>
+          <Link to="/" className="btn-primary">{t('cart_browse_vegetables')}</Link>
         </div>
       </div>
     )
@@ -32,7 +34,7 @@ export default function Cart() {
     <div className="min-h-screen pb-40">
       <Header />
       <div className="px-4 py-4 animate-fade-slide-in">
-        <h2 className="font-bold text-gray-800 text-lg mb-3">आपका कार्ट</h2>
+        <h2 className="font-bold text-gray-800 text-lg mb-3">{t('cart_title')}</h2>
 
         <div className="flex flex-col gap-3">
           {items.map((item) => (
@@ -54,7 +56,7 @@ export default function Cart() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <button onClick={() => removeFromCart(item.id)} className="text-red-500 text-xs font-semibold">
-                  हटाएं
+                  {t('cart_remove')}
                 </button>
                 <div className="flex items-center bg-kisan rounded-lg overflow-hidden">
                   <button onClick={() => decreaseQty(item.id)} className="text-white font-bold w-8 h-8 active:bg-kisan-dark">−</button>
@@ -68,21 +70,21 @@ export default function Cart() {
 
         {belowMin && (
           <div className="mt-4 bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3">
-            न्यूनतम ऑर्डर राशि {formatRupee(settings.min_order_value)} है। कृपया {formatRupee(settings.min_order_value - subtotal)} की और सब्ज़ियाँ जोड़ें।
+            {t('cart_below_min')} {formatRupee(settings.min_order_value)} {t('cart_add_more')} {formatRupee(settings.min_order_value - subtotal)}.
           </div>
         )}
 
         <div className="card p-4 mt-4">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>सामान का कुल मूल्य</span>
+            <span>{t('cart_subtotal')}</span>
             <span className="font-semibold">{formatRupee(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>डिलीवरी शुल्क</span>
-            <span className="font-semibold">{deliveryFee === 0 ? 'मुफ़्त' : formatRupee(deliveryFee)}</span>
+            <span>{t('cart_delivery_fee')}</span>
+            <span className="font-semibold">{deliveryFee === 0 ? t('cart_free') : formatRupee(deliveryFee)}</span>
           </div>
           <div className="border-t border-dashed border-gray-200 mt-2 pt-2 flex justify-between font-extrabold text-gray-800">
-            <span>कुल भुगतान</span>
+            <span>{t('cart_total')}</span>
             <span className="text-kisan">{formatRupee(total)}</span>
           </div>
         </div>
@@ -94,7 +96,7 @@ export default function Cart() {
           onClick={() => navigate('/checkout')}
           className="btn-primary w-full"
         >
-          ऑर्डर करने के लिए आगे बढ़ें
+          {t('cart_proceed')}
         </button>
       </div>
     </div>

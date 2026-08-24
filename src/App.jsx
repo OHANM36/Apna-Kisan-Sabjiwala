@@ -10,6 +10,8 @@ import VendorDetail from './pages/VendorDetail'
 import BottomNav from './components/BottomNav'
 import FloatingCallButton from './components/FloatingCallButton'
 import WelcomePopup from './components/WelcomePopup'
+import CustomerOrderWatcher from './components/CustomerOrderWatcher'
+import AIOrderAssistant from './components/AIOrderAssistant'
 
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import AdminLogin from './admin/AdminLogin'
@@ -94,6 +96,8 @@ export default function App() {
 
       {!isAdminRoute && !isSellerRoute && <FloatingCallButton />}
       {!isAdminRoute && !isSellerRoute && <WelcomePopup />}
+      {!isAdminRoute && !isSellerRoute && <CustomerOrderWatcher />}
+      {!isAdminRoute && !isSellerRoute && <AIOrderAssistant />}
       {!isAdminRoute && !isSellerRoute && <BottomNav />}
     </>
   )

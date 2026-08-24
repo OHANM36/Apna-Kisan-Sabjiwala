@@ -1,3 +1,5 @@
+import { useLanguage } from '../context/LanguageContext'
+
 const CATEGORY_EMOJI = {
   'sabhi-sabjiyan': '🧺',
   'aloo-pyaz': '🥔',
@@ -10,6 +12,7 @@ const CATEGORY_EMOJI = {
 }
 
 export default function CategorySidebar({ categories, activeSlug, onSelect }) {
+  const { t } = useLanguage()
   return (
     <aside className="w-[76px] shrink-0 bg-kisan-crate/30 border-r border-kisan-crate">
       <button
@@ -22,7 +25,7 @@ export default function CategorySidebar({ categories, activeSlug, onSelect }) {
           🧺
         </span>
         <span className={`text-[10px] font-bold leading-tight text-center ${!activeSlug ? 'text-kisan-ink' : 'text-gray-500'}`}>
-          सभी
+          {t('category_all')}
         </span>
       </button>
 

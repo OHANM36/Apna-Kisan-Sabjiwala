@@ -209,7 +209,59 @@ alter table orders replica identity full;
 
 ---
 
-## 🔟 आगे क्या जोड़ सकते हैं (वैकल्पिक सुधार)
+## 🔟 AI ऑर्डर असिस्टेंट (टेक्स्ट + वॉइस — Google AI से)
+
+ग्राहक अब बोलकर या टाइप करके ऑर्डर कर सकते हैं — जैसे "2 किलो आलू और 1 किलो टमाटर देना"। AI सिर्फ सब्ज़ी/मात्रा पहचानता है; **कीमत हमेशा डेटाबेस से ली जाती है, AI कभी कीमत खुद नहीं बनाता** (सर्वर-साइड Supabase Edge Function में सत्यापित)। AI दिमाग और वॉइस-पहचान — दोनों के लिए **Google की सेवाएं** इस्तेमाल होती हैं (Gemini + Cloud Speech-to-Text)।
+
+### कैसे काम करता है
+- Home पेज पर 🤖 **"AI से ऑर्डर करें"** बटन — टैप करने पर चैट खुलती है
+- टेक्स्ट या 🎤 माइक (हिंदी वॉइस — Google Cloud Speech-to-Text, ज़्यादातर सभी आधुनिक ब्राउज़र में काम करता है क्योंकि रिकॉर्डिंग सीधे ब्राउज़र से होती है, पहचान सर्वर पर) से बोल सकते हैं
+- AI (Google Gemini) सब्ज़ी + मात्रा पहचानकर डेटाबेस से असली कीमत जोड़ता है और सारांश दिखाता है
+- "✅ ऑर्डर कन्फर्म करें" दबाने पर आइटम मौजूदा कार्ट में जुड़ जाते हैं और सामान्य checkout/payment प्रक्रिया से गुज़रते हैं — **कोई अलग ऑर्डर सिस्टम नहीं**, वही पुराना भरोसेमंद रास्ता
+- एडमिन पैनल → ऑर्डर प्रबंधन में AI से आए ऑर्डर पर 🤖 **"AI सहायक"** बैज दिखता है, और फ़िल्टर में भी अलग से चुन सकते हैं
+
+### ज़रूरी सेटअप (Edge Functions डिप्लॉय करना)
+
+चूंकि Edge Functions सर्वर-साइड कोड हैं, इन्हें [Supabase CLI](https://supabase.com/docs/guides/cli) से डिप्लॉय करना होगा (सिर्फ SQL Editor से नहीं हो सकता):
+
+1. अपने कंप्यूटर पर Supabase CLI इंस्टॉल करें:
+   ```bash
+   npm install -g supabase
+   ```
+2. लॉगिन करें और प्रोजेक्ट से जोड़ें:
+   ```bash
+   supabase login
+   supabase link --project-ref आपका-प्रोजेक्ट-रेफ़  # Supabase URL में मिलेगा
+   ```
+3. **Google API key बनाएं:**
+   - [aistudio.google.com/apikey](https://aistudio.google.com/apikey) पर जाकर एक Gemini API key बनाएं (AI दिमाग के लिए)
+   - उसी Google Cloud प्रोजेक्ट में जाकर [Cloud Speech-to-Text API](https://console.cloud.google.com/apis/library/speech.googleapis.com) को **चालू (Enable)** करें (वॉइस पहचान के लिए) — यह API अलग से enable करनी ज़रूरी है, वरना वॉइस वाला हिस्सा एरर देगा
+   - ध्यान दें: Gemini की एक मुफ़्त सीमा (free tier) है, पर Cloud Speech-to-Text हमेशा से पेड सेवा है (बिलिंग अकाउंट चालू करना होगा), भले ही शुरू में कुछ मुफ़्त क्रेडिट मिले
+4. उस key को secret के रूप में सेट करें (दोनों functions के लिए एक ही key काम करेगी):
+   ```bash
+   supabase secrets set GOOGLE_API_KEY=AIzaSy-आपकी-key-यहां
+   ```
+5. दोनों फंक्शन डिप्लॉय करें:
+   ```bash
+   supabase functions deploy parse-order
+   supabase functions deploy speech-to-text
+   ```
+
+### डेटाबेस अपडेट
+```sql
+alter table orders add column if not exists order_source text not null default 'वेबसाइट'
+  check (order_source in ('वेबसाइट','AI सहायक','WhatsApp'));
+```
+
+### सीमाएं (ईमानदारी से)
+- **वॉइस इनपुट** के लिए ब्राउज़र से माइक की अनुमति चाहिए (HTTPS ज़रूरी — Vercel/Netlify दोनों पर अपने आप मिल जाता है)
+- मॉडल का नाम कोड में `gemini-2.5-flash` सेट है — अगर भविष्य में Google इसे बदल/हटा दे, तो `supabase/functions/parse-order/index.ts` में `GEMINI_MODEL` वैरिएबल बदलकर [ai.google.dev/gemini-api/docs/models](https://ai.google.dev/gemini-api/docs/models) पर मौजूद नया मॉडल नाम डालें
+- **WhatsApp बॉट** अभी इसमें शामिल नहीं है — इसके लिए Twilio/Gupshup/360dialog जैसी सेवा का पेड, verified WhatsApp Business API अकाउंट चाहिए, जो आपको खुद बनाना होगा। अभी मौजूद "WhatsApp पर ऑर्डर भेजें" बटन (wa.me लिंक) पहले जैसा ही काम करता रहेगा
+- अगर सब्ज़ी का नाम/मात्रा साफ़ न समझ आए, AI सीधे ऑर्डर नहीं बनाता — स्पष्टीकरण मांगता है (जैसा स्पेसिफिकेशन में मांगा गया था)
+
+---
+
+## 1️⃣1️⃣ आगे क्या जोड़ सकते हैं (वैकल्पिक सुधार)
 
 - बिल PDF डाउनलोड/प्रिंट सुविधा
 - एडमिन पैनल से WhatsApp नंबर व डिलीवरी सेटिंग बदलने का UI पेज

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useCart } from '../context/CartContext'
+import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
 import VeggieCharacter from './VeggieCharacter'
 
@@ -9,6 +10,7 @@ function tierCartId(vegId, tier) {
 
 export default function VegetableCard({ veg }) {
   const { items, addToCart, increaseQty, decreaseQty } = useCart()
+  const { t } = useLanguage()
   const unavailable = veg.stock_status === 'अनुपलब्ध'
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
@@ -69,7 +71,7 @@ export default function VegetableCard({ veg }) {
       <div className="relative aspect-square bg-kisan-crate/40 flex items-center justify-center">
         {hasDiscount && (
           <span className="absolute top-1.5 left-1.5 bg-kisan-tomato text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-tight z-10">
-            {discountPercent}% छूट
+            {discountPercent}% {t('veg_off')}
           </span>
         )}
         {veg.image_url ? (
@@ -79,7 +81,7 @@ export default function VegetableCard({ veg }) {
         )}
         {unavailable && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-            <span className="bg-kisan-ink text-white text-xs font-bold px-3 py-1 rounded-full">अनुपलब्ध</span>
+            <span className="bg-kisan-ink text-white text-xs font-bold px-3 py-1 rounded-full">{t('veg_unavailable')}</span>
           </div>
         )}
       </div>
@@ -88,7 +90,7 @@ export default function VegetableCard({ veg }) {
 
       <div className="p-2 pt-1.5 flex flex-col gap-0.5 flex-1">
         <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-kisan bg-kisan/10 px-1.5 py-0.5 rounded-md w-fit">
-          🌿 ताज़ा
+          {t('veg_fresh_tag')}
         </span>
         <h3 className="font-display font-semibold text-kisan-ink text-[12.5px] leading-tight line-clamp-1">{veg.name}</h3>
         {veg.sellers?.business_name && (
@@ -138,7 +140,7 @@ export default function VegetableCard({ veg }) {
                     : 'bg-white text-kisan border-kisan'
                 } disabled:opacity-40`}
               >
-                {unavailable ? 'अनुपलब्ध' : 'कार्ट में डालें'}
+                {unavailable ? t('veg_unavailable') : t('veg_add_to_cart')}
               </button>
             ) : (
               <div className="flex items-center justify-between bg-kisan rounded-lg overflow-hidden">
@@ -157,7 +159,7 @@ export default function VegetableCard({ veg }) {
                   : 'bg-white text-kisan border-kisan'
               } disabled:opacity-40`}
             >
-              {unavailable ? 'अनुपलब्ध' : 'कार्ट में डालें'}
+              {unavailable ? t('veg_unavailable') : t('veg_add_to_cart')}
             </button>
           ) : (
             <div className="flex items-center justify-between bg-kisan rounded-lg overflow-hidden">

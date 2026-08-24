@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient'
 import { startOnlinePayment } from '../utils/payment'
 import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
+import { useLanguage } from '../context/LanguageContext'
 import { formatRupee, DELIVERY_TIME_SLOTS } from '../utils/format'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
@@ -13,6 +14,7 @@ const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCart()
   const { settings } = useSettings()
+  const { t } = useLanguage()
   const navigate = useNavigate()
 
   const savedCustomer = (() => {
@@ -171,6 +173,7 @@ export default function Checkout() {
           total_amount: total,
           payment_status: 'लंबित',
           payment_method: 'ऑनलाइन',
+          order_source: sessionStorage.getItem('aks_order_source') || 'वेबसाइट',
           order_status: 'नया ऑर्डर',
         })
         .select('*')
@@ -212,6 +215,7 @@ export default function Checkout() {
             .eq('id', order.id)
 
           clearCart()
+          sessionStorage.removeItem('aks_order_source')
           navigate(`/order-confirmation/${order.id}`)
         },
         onFailure: async (message) => {
@@ -240,15 +244,15 @@ export default function Checkout() {
     <div className="min-h-screen pb-40">
       <Header />
       <div className="px-4 py-4 animate-fade-slide-in">
-        <h2 className="font-bold text-gray-800 text-lg mb-4">डिलीवरी की जानकारी</h2>
+        <h2 className="font-bold text-gray-800 text-lg mb-4">{t('checkout_delivery_info')}</h2>
 
         <div className="flex flex-col gap-3">
-          <Field label="ग्राहक का नाम" error={errors.name}>
-            <input className="input-field" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="अपना पूरा नाम लिखें" />
+          <Field label={t('checkout_customer_name')} error={errors.name}>
+            <input className="input-field" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder={t('checkout_name_placeholder')} />
           </Field>
 
-          <Field label="मोबाइल नंबर" error={errors.phone}>
-            <input className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10 अंकों का मोबाइल नंबर" inputMode="numeric" />
+          <Field label={t('checkout_phone')} error={errors.phone}>
+            <input className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder={t('checkout_phone_placeholder')} inputMode="numeric" />
           </Field>
 
           <div>
@@ -259,33 +263,33 @@ export default function Checkout() {
               className="w-full flex items-center justify-center gap-2 border-2 border-kisan text-kisan font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-60"
             >
               <span>📍</span>
-              {locating ? 'लोकेशन ढूंढी जा रही है...' : 'मेरी वर्तमान लोकेशन का उपयोग करें'}
+              {locating ? t('checkout_locating') : t('checkout_use_location')}
             </button>
             {locationError && <p className="text-red-500 text-xs mt-1.5 font-semibold">{locationError}</p>}
           </div>
 
-          <Field label="पूरा पता" error={errors.address}>
-            <textarea className="input-field" rows={2} value={form.address} onChange={(e) => updateField('address', e.target.value)} placeholder="मकान नंबर, गली नंबर आदि" />
+          <Field label={t('checkout_address')} error={errors.address}>
+            <textarea className="input-field" rows={2} value={form.address} onChange={(e) => updateField('address', e.target.value)} placeholder={t('checkout_address_placeholder')} />
           </Field>
 
-          <Field label="मोहल्ला / कॉलोनी">
-            <input className="input-field" value={form.mohalla} onChange={(e) => updateField('mohalla', e.target.value)} placeholder="मोहल्ला / कॉलोनी का नाम" />
+          <Field label={t('checkout_mohalla')}>
+            <input className="input-field" value={form.mohalla} onChange={(e) => updateField('mohalla', e.target.value)} placeholder={t('checkout_mohalla')} />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="शहर" error={errors.city}>
+            <Field label={t('checkout_city')} error={errors.city}>
               <input className="input-field" value={form.city} onChange={(e) => updateField('city', e.target.value)} />
             </Field>
-            <Field label="पिन कोड" error={errors.pincode}>
+            <Field label={t('checkout_pincode')} error={errors.pincode}>
               <input className="input-field" value={form.pincode} onChange={(e) => updateField('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="डिलीवरी की तारीख" error={errors.deliveryDate}>
+            <Field label={t('checkout_delivery_date')} error={errors.deliveryDate}>
               <input type="date" className="input-field" min={new Date().toISOString().slice(0, 10)} value={form.deliveryDate} onChange={(e) => updateField('deliveryDate', e.target.value)} />
             </Field>
-            <Field label="डिलीवरी का समय">
+            <Field label={t('checkout_delivery_time')}>
               <select className="input-field" value={form.deliveryTime} onChange={(e) => updateField('deliveryTime', e.target.value)}>
                 {DELIVERY_TIME_SLOTS.map((slot) => (
                   <option key={slot} value={slot}>{slot}</option>
@@ -294,44 +298,44 @@ export default function Checkout() {
             </Field>
           </div>
 
-          <Field label="अतिरिक्त जानकारी (वैकल्पिक)">
-            <textarea className="input-field" rows={2} value={form.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder="कोई खास निर्देश हो तो लिखें" />
+          <Field label={t('checkout_extra_notes')}>
+            <textarea className="input-field" rows={2} value={form.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder={t('checkout_notes_placeholder')} />
           </Field>
         </div>
 
         <div className="card p-4 mt-5">
-          <h3 className="font-bold text-gray-700 text-sm mb-2">कूपन कोड</h3>
+          <h3 className="font-bold text-gray-700 text-sm mb-2">{t('checkout_coupon')}</h3>
           <div className="flex gap-2">
-            <input className="input-field flex-1" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="कूपन कोड डालें" />
-            <button onClick={applyCoupon} className="btn-outline px-4 py-0">लागू करें</button>
+            <input className="input-field flex-1" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={t('checkout_coupon_placeholder')} />
+            <button onClick={applyCoupon} className="btn-outline px-4 py-0">{t('checkout_apply')}</button>
           </div>
           {couponMsg && <p className={`text-xs mt-2 font-semibold ${discount > 0 ? 'text-kisan' : 'text-red-500'}`}>{couponMsg}</p>}
         </div>
 
         <div className="card p-4 mt-4">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>सामान का कुल मूल्य</span>
+            <span>{t('cart_subtotal')}</span>
             <span className="font-semibold">{formatRupee(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>डिलीवरी शुल्क</span>
-            <span className="font-semibold">{deliveryFee === 0 ? 'मुफ़्त' : formatRupee(deliveryFee)}</span>
+            <span>{t('cart_delivery_fee')}</span>
+            <span className="font-semibold">{deliveryFee === 0 ? t('cart_free') : formatRupee(deliveryFee)}</span>
           </div>
           {discount > 0 && (
             <div className="flex justify-between text-sm text-kisan mb-2">
-              <span>छूट</span>
+              <span>{t('checkout_discount')}</span>
               <span className="font-semibold">−{formatRupee(discount)}</span>
             </div>
           )}
           <div className="border-t border-dashed border-gray-200 mt-2 pt-2 flex justify-between font-extrabold text-gray-800">
-            <span>कुल भुगतान राशि</span>
+            <span>{t('checkout_total_amount')}</span>
             <span className="text-kisan">{formatRupee(total)}</span>
           </div>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold rounded-xl px-4 py-3 mt-4 flex items-center gap-2">
           <span>🔒</span>
-          <span>केवल ऑनलाइन भुगतान उपलब्ध है (UPI / कार्ड / नेट बैंकिंग) — कैश ऑन डिलीवरी उपलब्ध नहीं है।</span>
+          <span>{t('checkout_online_only')}</span>
         </div>
 
         {paymentError && (
@@ -343,7 +347,7 @@ export default function Checkout() {
 
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 safe-bottom">
         <button onClick={handlePayNow} disabled={submitting} className="btn-primary w-full">
-          {submitting ? 'प्रोसेस हो रहा है...' : `${formatRupee(total)} का ऑनलाइन भुगतान करें`}
+          {submitting ? t('checkout_processing') : `${formatRupee(total)} ${t('checkout_pay_button')}`}
         </button>
       </div>
     </div>

@@ -6,6 +6,7 @@ import CategorySidebar from '../components/CategorySidebar'
 import VegetableCard from '../components/VegetableCard'
 import Loading from '../components/Loading'
 import { useSettings } from '../context/SettingsContext'
+import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || null)
   const [search, setSearch] = useState('')
   const { settings } = useSettings()
+  const { t } = useLanguage()
 
   useEffect(() => {
     loadData()
@@ -58,7 +60,7 @@ export default function Home() {
 
       {!settings.is_store_open && (
         <div className="bg-red-100 text-red-700 text-center text-sm font-semibold py-2 px-4">
-          फिलहाल स्टोर बंद है। कृपया बाद में ऑर्डर करें।
+          {t('home_store_closed')}
         </div>
       )}
 
@@ -75,7 +77,7 @@ export default function Home() {
                   {o.description && <p className="text-[11px] mt-0.5 opacity-90">{o.description}</p>}
                   {o.coupon_code && (
                     <p className="text-[11px] mt-1 bg-white/20 inline-block px-2 py-0.5 rounded font-bold">
-                      कोड: {o.coupon_code}
+                      {o.coupon_code}
                     </p>
                   )}
                 </div>
@@ -85,7 +87,7 @@ export default function Home() {
 
           <div className="px-3 pt-3">
             <div className="bg-kisan-dark/5 border border-kisan/20 rounded-xl px-3 py-2 text-xs text-kisan-dark font-semibold">
-              न्यूनतम ऑर्डर: {formatRupee(settings.min_order_value)} • डिलीवरी शुल्क: {formatRupee(settings.delivery_fee)}
+              {t('home_min_order')}: {formatRupee(settings.min_order_value)} • {t('home_delivery_fee')}: {formatRupee(settings.delivery_fee)}
             </div>
           </div>
 
@@ -95,7 +97,7 @@ export default function Home() {
               className="flex items-center justify-between bg-white border border-kisan-crate rounded-xl px-3 py-2.5 active:scale-95 transition-transform"
             >
               <span className="flex items-center gap-1.5 font-bold text-gray-700 text-xs">
-                🧑‍🌾 हमारे विक्रेता देखें
+                {t('home_view_vendors')}
               </span>
               <span className="text-kisan text-xs font-bold">→</span>
             </Link>
@@ -103,15 +105,15 @@ export default function Home() {
 
           <div className="px-3 animate-fade-slide-in">
             <h2 className="font-display font-bold text-kisan-ink text-sm mb-2">
-              {search ? `खोज परिणाम "${search}"` : 'आज की उपलब्ध सब्ज़ियाँ'}
+              {search ? `${t('home_search_results')} "${search}"` : t('home_available_today')}
             </h2>
 
             {loading ? (
-              <Loading text="सब्ज़ियाँ लोड हो रही हैं..." />
+              <Loading text={t('home_loading_vegetables')} />
             ) : filtered.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-5xl mb-3">🔍</p>
-                <p className="text-gray-500 font-medium">कोई सब्ज़ी नहीं मिली</p>
+                <p className="text-gray-500 font-medium">{t('home_no_results')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2.5 pb-4">

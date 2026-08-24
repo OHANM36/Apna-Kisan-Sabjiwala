@@ -30,7 +30,11 @@ export default function AdminOrders() {
     loadOrders()
   }
 
-  const filtered = filter === 'सभी' ? orders : orders.filter((o) => o.order_status === filter)
+  const filtered = filter === 'सभी'
+    ? orders
+    : filter === 'AI सहायक'
+    ? orders.filter((o) => o.order_source === 'AI सहायक')
+    : orders.filter((o) => o.order_status === filter)
 
   if (loading) return <Loading />
 
@@ -39,7 +43,7 @@ export default function AdminOrders() {
       <h1 className="font-extrabold text-xl text-gray-800 mb-5">ऑर्डर प्रबंधन</h1>
 
       <div className="flex gap-2 overflow-x-auto mb-4 no-scrollbar">
-        {['सभी', ...ALL_STATUSES].map((s) => (
+        {['सभी', 'AI सहायक', ...ALL_STATUSES].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -60,6 +64,11 @@ export default function AdminOrders() {
                 <p className="font-bold text-gray-800 text-sm">{o.order_number}</p>
                 <p className="text-xs text-gray-500">{o.customer_name} • {o.customer_phone}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{formatDate(o.created_at)}</p>
+                {o.order_source && o.order_source !== 'वेबसाइट' && (
+                  <span className="inline-block mt-1 text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                    🤖 {o.order_source}
+                  </span>
+                )}
               </div>
               <div className="text-right">
                 <p className="font-extrabold text-gray-800">{formatRupee(o.total_amount)}</p>

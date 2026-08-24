@@ -71,6 +71,7 @@ create table if not exists vegetables (
   emoji text default '🥬',
   image_url text,
   price numeric(10,2) not null,       -- कीमत
+  mrp numeric(10,2),                  -- वैकल्पिक: कटी हुई (strikethrough) MRP कीमत — छूट % दिखाने के लिए
   unit text not null default 'किलो',  -- किलो / आधा किलो / ग्राम / गड्डी / नग
   price_tiers jsonb,                  -- वैकल्पिक: मात्रा के हिसाब से अलग-अलग कीमत
                                        -- जैसे: [{"qty":0.5,"unit":"किलो","price":18},{"qty":1,"unit":"किलो","price":30}]
@@ -178,6 +179,7 @@ create table if not exists orders (
   total_amount numeric(10,2) not null default 0,
   payment_status text not null default 'लंबित' check (payment_status in ('लंबित','सफल','असफल','रिफंड')),
   payment_method text default 'ऑनलाइन' check (payment_method in ('UPI','ऑनलाइन')),
+  order_source text not null default 'वेबसाइट' check (order_source in ('वेबसाइट','AI सहायक','WhatsApp')),
   order_status text not null default 'नया ऑर्डर' check (order_status in (
     'नया ऑर्डर','भुगतान सफल','स्वीकार किया गया','सामान तैयार हो रहा है','डिलीवरी के लिए निकल गया','डिलीवरी पूरी हुई','रद्द'
   )),
@@ -510,4 +512,19 @@ on conflict do nothing;
 -- अगर आपने पहले से schema.sql (seller_id वाला order_items) चला रखी है तो सिर्फ यह चलाएं:
 --
 -- alter table order_items add column if not exists seller_name text;
+-- =========================================================
+
+-- =========================================================
+-- MIGRATION: सब्ज़ी पर MRP/डिस्काउंट बैज दिखाने के लिए,
+-- अगर आपने पहले से schema.sql चला रखी है तो सिर्फ यह चलाएं:
+--
+-- alter table vegetables add column if not exists mrp numeric(10,2);
+-- =========================================================
+
+-- =========================================================
+-- MIGRATION: AI ऑर्डर असिस्टेंट के लिए order_source कॉलम जोड़ने हेतु,
+-- अगर आपने पहले से schema.sql चला रखी है तो सिर्फ यह चलाएं:
+--
+-- alter table orders add column if not exists order_source text not null default 'वेबसाइट'
+--   check (order_source in ('वेबसाइट','AI सहायक','WhatsApp'));
 -- =========================================================
