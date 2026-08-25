@@ -25,6 +25,7 @@ const translations = {
   home_no_results: { hi: 'कोई सब्ज़ी नहीं मिली', en: 'No vegetables found' },
   home_store_closed: { hi: 'फिलहाल स्टोर बंद है। कृपया बाद में ऑर्डर करें।', en: 'Store is closed right now. Please order later.' },
   category_all: { hi: 'सभी', en: 'All' },
+  categories_page_title: { hi: 'सब्ज़ियों की श्रेणियाँ', en: 'Vegetable Categories' },
 
   // VegetableCard
   veg_fresh_tag: { hi: '🌿 ताज़ा', en: '🌿 Fresh' },
@@ -137,6 +138,22 @@ const timeSlotMap = {
 
 export function translateTimeSlot(value, lang) {
   const entry = timeSlotMap[value]
+  if (!entry) return value
+  return entry[lang] || entry.hi || value
+}
+
+// माप की इकाई (यूनिट) — किलो/ग्राम/आधा किलो/नग/गड्डी/दर्जन एक फिक्स्ड लिस्ट है, अनुवाद संभव
+const unitMap = {
+  'किलो': { hi: 'किलो', en: 'kg' },
+  'आधा किलो': { hi: 'आधा किलो', en: 'half kg' },
+  'ग्राम': { hi: 'ग्राम', en: 'gram' },
+  'गड्डी': { hi: 'गड्डी', en: 'bunch' },
+  'नग': { hi: 'नग', en: 'piece' },
+  'दर्जन': { hi: 'दर्जन', en: 'dozen' },
+}
+
+export function translateUnit(value, lang) {
+  const entry = unitMap[value]
   if (!entry) return value
   return entry[lang] || entry.hi || value
 }

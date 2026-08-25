@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
 import Loading from '../components/Loading'
+import { useLanguage } from '../context/LanguageContext'
 
 const CATEGORY_EMOJI = {
   'sabhi-sabjiyan': '🧺',
@@ -19,6 +20,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { t, tName } = useLanguage()
 
   useEffect(() => {
     supabase
@@ -36,7 +38,7 @@ export default function Categories() {
     <div className="min-h-screen pb-24">
       <Header />
       <div className="px-4 py-4 animate-fade-slide-in">
-        <h2 className="font-bold text-gray-800 text-lg mb-4">सब्ज़ियों की श्रेणियाँ</h2>
+        <h2 className="font-bold text-gray-800 text-lg mb-4">{t('categories_page_title')}</h2>
         {loading ? (
           <Loading />
         ) : (
@@ -48,7 +50,7 @@ export default function Categories() {
                 className="card p-5 flex flex-col items-center gap-2 active:scale-95 transition-transform"
               >
                 <span className="text-4xl">{CATEGORY_EMOJI[cat.slug] || '🥦'}</span>
-                <span className="font-bold text-gray-700 text-center text-sm">{cat.name}</span>
+                <span className="font-bold text-gray-700 text-center text-sm">{tName(cat)}</span>
               </button>
             ))}
           </div>
