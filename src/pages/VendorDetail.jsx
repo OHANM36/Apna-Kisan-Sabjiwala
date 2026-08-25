@@ -32,7 +32,7 @@ export default function VendorDetail() {
 
     const { data: vegs } = await supabase
       .from('vegetables')
-      .select('*, categories(name, slug), sellers(business_name, photo_url)')
+      .select('*, categories(name, name_en, slug), sellers(business_name, photo_url)')
       .eq('seller_id', vendorId)
       .eq('is_active', true)
       .order('display_order')

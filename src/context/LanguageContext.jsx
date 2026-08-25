@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { translate, translateStatus } from '../utils/translations'
+import { translate, translateStatus, translateTimeSlot, pickLocalizedName } from '../utils/translations'
 
 const LanguageContext = createContext(null)
 const STORAGE_KEY = 'aks_language'
@@ -33,8 +33,16 @@ export function LanguageProvider({ children }) {
     return translateStatus(value, language)
   }
 
+  function tTimeSlot(value) {
+    return translateTimeSlot(value, language)
+  }
+
+  function tName(record) {
+    return pickLocalizedName(record, language)
+  }
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t, tStatus }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t, tStatus, tTimeSlot, tName }}>
       {children}
     </LanguageContext.Provider>
   )

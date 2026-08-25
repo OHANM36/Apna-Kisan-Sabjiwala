@@ -9,6 +9,7 @@ import logo from '../assets/logo.png'
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
   { to: '/admin/vegetables', label: 'सब्ज़ियाँ', icon: '🥕' },
+  { to: '/admin/categories', label: 'श्रेणियाँ', icon: '📂' },
   { to: '/admin/bulk-edit', label: 'कीमतें बदलें', icon: '💰' },
   { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },

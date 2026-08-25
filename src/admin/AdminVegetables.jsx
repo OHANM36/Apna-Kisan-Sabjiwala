@@ -4,7 +4,7 @@ import { formatRupee } from '../utils/format'
 import Loading from '../components/Loading'
 
 const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
-const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', mrp: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
+const EMPTY_FORM = { id: null, name: '', name_en: '', category_id: '', price: '', mrp: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
 
 export default function AdminVegetables() {
   const [vegetables, setVegetables] = useState([])
@@ -39,6 +39,7 @@ export default function AdminVegetables() {
     setForm({
       id: veg.id,
       name: veg.name,
+      name_en: veg.name_en || '',
       category_id: veg.category_id || '',
       price: veg.price,
       mrp: veg.mrp || '',
@@ -89,6 +90,7 @@ export default function AdminVegetables() {
       .map((t) => ({ qty: Number(t.qty), unit: t.unit, price: Number(t.price) }))
     const payload = {
       name: form.name,
+      name_en: form.name_en.trim() || null,
       category_id: form.category_id || null,
       price: Number(form.price),
       mrp: form.mrp !== '' ? Number(form.mrp) : null,
@@ -200,6 +202,10 @@ export default function AdminVegetables() {
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">सब्ज़ी का नाम</label>
                 <input required className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">English नाम (वैकल्पिक — अंग्रेज़ी UI में दिखेगा)</label>
+                <input className="input-field" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} placeholder="जैसे: Potato" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">श्रेणी</label>

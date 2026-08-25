@@ -18,6 +18,7 @@ import AdminLogin from './admin/AdminLogin'
 import AdminLayout from './admin/AdminLayout'
 import AdminDashboard from './admin/AdminDashboard'
 import AdminVegetables from './admin/AdminVegetables'
+import AdminCategories from './admin/AdminCategories'
 import AdminBulkEdit from './admin/AdminBulkEdit'
 import AdminWelcomePopup from './admin/AdminWelcomePopup'
 import AdminOrders from './admin/AdminOrders'
@@ -62,6 +63,7 @@ export default function App() {
                 <Route element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="vegetables" element={<AdminVegetables />} />
+                  <Route path="categories" element={<AdminCategories />} />
                   <Route path="bulk-edit" element={<AdminBulkEdit />} />
                   <Route path="welcome-popup" element={<AdminWelcomePopup />} />
                   <Route path="orders" element={<AdminOrders />} />

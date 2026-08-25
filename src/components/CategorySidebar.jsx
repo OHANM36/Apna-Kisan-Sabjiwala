@@ -12,7 +12,7 @@ const CATEGORY_EMOJI = {
 }
 
 export default function CategorySidebar({ categories, activeSlug, onSelect }) {
-  const { t } = useLanguage()
+  const { t, tName } = useLanguage()
   return (
     <aside className="w-[76px] shrink-0 bg-kisan-crate/30 border-r border-kisan-crate">
       <button
@@ -43,7 +43,7 @@ export default function CategorySidebar({ categories, activeSlug, onSelect }) {
               {CATEGORY_EMOJI[cat.slug] || '🥦'}
             </span>
             <span className={`text-[10px] font-bold leading-tight text-center line-clamp-2 ${isActive ? 'text-kisan-ink' : 'text-gray-500'}`}>
-              {cat.name}
+              {tName(cat)}
             </span>
           </button>
         )

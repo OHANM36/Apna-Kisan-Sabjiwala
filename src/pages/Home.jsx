@@ -34,7 +34,7 @@ export default function Home() {
     const [{ data: vegs }, { data: cats }, { data: offs }] = await Promise.all([
       supabase
         .from('vegetables')
-        .select('*, categories(name, slug), sellers(business_name, photo_url)')
+        .select('*, categories(name, name_en, slug), sellers(business_name, photo_url)')
         .eq('is_active', true)
         .order('display_order'),
       supabase.from('categories').select('*').eq('is_active', true).order('display_order'),
@@ -49,7 +49,10 @@ export default function Home() {
   const filtered = useMemo(() => {
     return vegetables.filter((v) => {
       const matchesCategory = !activeCategory || v.categories?.slug === activeCategory
-      const matchesSearch = v.name.toLowerCase().includes(search.trim().toLowerCase())
+      const searchLower = search.trim().toLowerCase()
+      const matchesSearch =
+        v.name.toLowerCase().includes(searchLower) ||
+        (v.name_en && v.name_en.toLowerCase().includes(searchLower))
       return matchesCategory && matchesSearch
     })
   }, [vegetables, activeCategory, search])

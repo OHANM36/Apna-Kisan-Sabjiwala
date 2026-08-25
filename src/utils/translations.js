@@ -75,6 +75,20 @@ const translations = {
   checkout_pay_button: { hi: 'का ऑनलाइन भुगतान करें', en: 'Pay Online' },
   checkout_processing: { hi: 'प्रोसेस हो रहा है...', en: 'Processing...' },
 
+  // Checkout validation/coupon messages
+  err_name_required: { hi: 'नाम आवश्यक है', en: 'Name is required' },
+  err_phone_invalid: { hi: 'सही मोबाइल नंबर डालें (10 अंक)', en: 'Enter a valid mobile number (10 digits)' },
+  err_address_required: { hi: 'पूरा पता आवश्यक है', en: 'Full address is required' },
+  err_city_required: { hi: 'शहर आवश्यक है', en: 'City is required' },
+  err_pincode_invalid: { hi: 'सही पिन कोड डालें (6 अंक)', en: 'Enter a valid pincode (6 digits)' },
+  err_delivery_date_required: { hi: 'डिलीवरी की तारीख चुनें', en: 'Select a delivery date' },
+  err_location_failed: { hi: 'लोकेशन नहीं मिल सकी। कृपया पता खुद लिखें।', en: 'Could not get location. Please enter address manually.' },
+  err_coupon_invalid: { hi: 'यह कूपन कोड मान्य नहीं है', en: 'This coupon code is not valid' },
+  err_coupon_min_order: { hi: 'इस कूपन के लिए न्यूनतम ऑर्डर होना चाहिए', en: 'This coupon requires a minimum order of' },
+  msg_coupon_applied: { hi: 'कूपन लागू हुआ! आपको छूट मिली', en: 'Coupon applied! You got a discount of' },
+  err_payment_retry: { hi: 'कृपया दोबारा भुगतान करने का प्रयास करें।', en: 'Please try the payment again.' },
+  err_generic: { hi: 'कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।', en: 'Something went wrong. Please try again.' },
+
   // Order Confirmation
   order_success: { hi: 'आपका ऑर्डर सफलतापूर्वक दर्ज हो गया है।', en: 'Your order has been placed successfully.' },
   order_number: { hi: 'ऑर्डर नंबर', en: 'Order Number' },
@@ -109,6 +123,32 @@ export function translateStatus(value, lang) {
   const entry = statusMap[value]
   if (!entry) return value
   return entry[lang] || entry.hi || value
+}
+
+// डिलीवरी समय-स्लॉट (schema में फिक्स्ड लिस्ट है, इसलिए यहां भी अनुवाद संभव — 
+// डेटाबेस में स्टोर हमेशा हिंदी वैल्यू से होता है, दिखाने के वक्त भाषा अनुसार बदलता है)
+const timeSlotMap = {
+  'सुबह 7 - 9 बजे': { hi: 'सुबह 7 - 9 बजे', en: '7 - 9 AM' },
+  'सुबह 9 - 11 बजे': { hi: 'सुबह 9 - 11 बजे', en: '9 - 11 AM' },
+  'दोपहर 12 - 2 बजे': { hi: 'दोपहर 12 - 2 बजे', en: '12 - 2 PM' },
+  'शाम 4 - 6 बजे': { hi: 'शाम 4 - 6 बजे', en: '4 - 6 PM' },
+  'शाम 6 - 8 बजे': { hi: 'शाम 6 - 8 बजे', en: '6 - 8 PM' },
+}
+
+export function translateTimeSlot(value, lang) {
+  const entry = timeSlotMap[value]
+  if (!entry) return value
+  return entry[lang] || entry.hi || value
+}
+
+/**
+ * डेटाबेस के किसी रिकॉर्ड (सब्ज़ी/श्रेणी) से भाषा अनुसार सही नाम चुनता है।
+ * अगर English नाम एडमिन ने नहीं भरा, तो हमेशा हिंदी नाम ही दिखता है (fallback)।
+ */
+export function pickLocalizedName(record, lang) {
+  if (!record) return ''
+  if (lang === 'en' && record.name_en && record.name_en.trim()) return record.name_en
+  return record.name
 }
 
 export function translate(key, lang) {

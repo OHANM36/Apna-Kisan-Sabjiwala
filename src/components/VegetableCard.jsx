@@ -10,7 +10,7 @@ function tierCartId(vegId, tier) {
 
 export default function VegetableCard({ veg }) {
   const { items, addToCart, increaseQty, decreaseQty } = useCart()
-  const { t } = useLanguage()
+  const { t, tName } = useLanguage()
   const unavailable = veg.stock_status === 'अनुपलब्ध'
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
@@ -75,7 +75,7 @@ export default function VegetableCard({ veg }) {
           </span>
         )}
         {veg.image_url ? (
-          <img src={veg.image_url} alt={veg.name} className="w-full h-full object-cover" loading="lazy" />
+          <img src={veg.image_url} alt={tName(veg)} className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <VeggieCharacter name={veg.name} className="w-16 h-16" />
         )}
@@ -92,7 +92,7 @@ export default function VegetableCard({ veg }) {
         <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-kisan bg-kisan/10 px-1.5 py-0.5 rounded-md w-fit">
           {t('veg_fresh_tag')}
         </span>
-        <h3 className="font-display font-semibold text-kisan-ink text-[12.5px] leading-tight line-clamp-1">{veg.name}</h3>
+        <h3 className="font-display font-semibold text-kisan-ink text-[12.5px] leading-tight line-clamp-1">{tName(veg)}</h3>
         {veg.sellers?.business_name && (
           <p className="text-[9px] text-gray-400 font-semibold flex items-center gap-0.5 line-clamp-1">
             🧑‍🌾 {veg.sellers.business_name}
