@@ -8,6 +8,7 @@ import Loading from '../components/Loading'
 import { useSettings } from '../context/SettingsContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
+import { matchesVegetableSearch } from '../utils/searchMatch'
 
 export default function Home() {
   const [vegetables, setVegetables] = useState([])
@@ -49,29 +50,26 @@ export default function Home() {
   const filtered = useMemo(() => {
     return vegetables.filter((v) => {
       const matchesCategory = !activeCategory || v.categories?.slug === activeCategory
-      const searchLower = search.trim().toLowerCase()
-      const matchesSearch =
-        v.name.toLowerCase().includes(searchLower) ||
-        (v.name_en && v.name_en.toLowerCase().includes(searchLower))
+      const matchesSearch = matchesVegetableSearch(v.name, v.name_en, search)
       return matchesCategory && matchesSearch
     })
   }, [vegetables, activeCategory, search])
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Header showSearch searchValue={search} onSearchChange={setSearch} />
 
       {!settings.is_store_open && (
-        <div className="bg-red-100 text-red-700 text-center text-sm font-semibold py-2 px-4">
+        <div className="bg-red-100 text-red-700 text-center text-sm font-semibold py-2 px-4 shrink-0">
           {t('home_store_closed')}
         </div>
       )}
 
-      {/* बाईं तरफ श्रेणी sidebar + दाईं तरफ मुख्य कंटेंट — quick-commerce शैली लेआउट */}
-      <div className="flex items-start">
+      {/* बाईं तरफ श्रेणी sidebar (स्थिर/freeze) + दाईं तरफ मुख्य कंटेंट (सिर्फ यही स्क्रॉल होगा) */}
+      <div className="flex items-stretch flex-1 min-h-0">
         <CategorySidebar categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} />
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-y-auto pb-24">
           {offers.length > 0 && (
             <div className="px-3 pt-3">
               {offers.slice(0, 1).map((o) => (

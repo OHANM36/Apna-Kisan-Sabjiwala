@@ -14,7 +14,7 @@ const CATEGORY_EMOJI = {
 export default function CategorySidebar({ categories, activeSlug, onSelect }) {
   const { t, tName } = useLanguage()
   return (
-    <aside className="w-[76px] shrink-0 bg-kisan-crate/30 border-r border-kisan-crate">
+    <aside className="w-[76px] shrink-0 bg-kisan-crate/30 border-r border-kisan-crate h-full overflow-y-auto overscroll-contain">
       <button
         onClick={() => onSelect(null)}
         className={`w-full flex flex-col items-center gap-1 py-3 px-1 transition-colors ${
