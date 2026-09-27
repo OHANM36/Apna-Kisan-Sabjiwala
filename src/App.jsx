@@ -25,6 +25,7 @@ import AdminOrders from './admin/AdminOrders'
 import AdminCustomers from './admin/AdminCustomers'
 import AdminReports from './admin/AdminReports'
 import AdminSellers from './admin/AdminSellers'
+import AdminDeliveryBoys from './admin/AdminDeliveryBoys'
 
 import { SellerAuthProvider } from './context/SellerAuthContext'
 import SellerSignup from './seller/SellerSignup'
@@ -35,10 +36,16 @@ import SellerVegetables from './seller/SellerVegetables'
 import SellerOrders from './seller/SellerOrders'
 import SellerProfile from './seller/SellerProfile'
 
+import { DeliveryAuthProvider } from './context/DeliveryAuthContext'
+import DeliveryLogin from './delivery/DeliveryLogin'
+import DeliveryLayout from './delivery/DeliveryLayout'
+import DeliveryOrders from './delivery/DeliveryOrders'
+
 export default function App() {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
   const isSellerRoute = location.pathname.startsWith('/seller')
+  const isDeliveryRoute = location.pathname.startsWith('/delivery')
 
   return (
     <>
@@ -70,6 +77,7 @@ export default function App() {
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="sellers" element={<AdminSellers />} />
+                  <Route path="delivery-boys" element={<AdminDeliveryBoys />} />
                 </Route>
               </Routes>
             </AdminAuthProvider>
@@ -94,13 +102,28 @@ export default function App() {
             </SellerAuthProvider>
           }
         />
+
+        {/* डिलीवरी बॉय पैनल */}
+        <Route
+          path="/delivery/*"
+          element={
+            <DeliveryAuthProvider>
+              <Routes>
+                <Route path="login" element={<DeliveryLogin />} />
+                <Route element={<DeliveryLayout />}>
+                  <Route index element={<DeliveryOrders />} />
+                </Route>
+              </Routes>
+            </DeliveryAuthProvider>
+          }
+        />
       </Routes>
 
-      {!isAdminRoute && !isSellerRoute && <FloatingCallButton />}
-      {!isAdminRoute && !isSellerRoute && <WelcomePopup />}
-      {!isAdminRoute && !isSellerRoute && <CustomerOrderWatcher />}
-      {!isAdminRoute && !isSellerRoute && <AIOrderAssistant />}
-      {!isAdminRoute && !isSellerRoute && <BottomNav />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <FloatingCallButton />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <WelcomePopup />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <CustomerOrderWatcher />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <AIOrderAssistant />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <BottomNav />}
     </>
   )
 }

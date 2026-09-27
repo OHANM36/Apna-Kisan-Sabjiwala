@@ -50,6 +50,23 @@ create trigger trg_prevent_self_approve before update on sellers
   for each row execute function prevent_self_approve();
 
 -- =========================================================
+-- 1ख. डिलीवरी बॉय (delivery_boys) - PIN से लॉगिन (Supabase Auth नहीं)
+-- हर डिलीवरी बॉय का अपना 4 अंकों का पिन होता है, जिससे वो /delivery पैनल में लॉगिन करता है
+-- =========================================================
+create table if not exists delivery_boys (
+  id uuid primary key default gen_random_uuid(),
+  full_name text not null,
+  phone text,
+  pin text not null,               -- 4 अंकों का पिन (जैसे: 1234)
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- एक समय पर दो सक्रिय डिलीवरी बॉय का एक जैसा पिन नहीं हो सकता
+create unique index if not exists idx_delivery_boys_active_pin
+  on delivery_boys(pin) where is_active = true;
+
+-- =========================================================
 -- 2. सब्ज़ियों की श्रेणियाँ (categories)
 -- =========================================================
 create table if not exists categories (
@@ -185,6 +202,7 @@ create table if not exists orders (
   )),
   latitude numeric(10,7),
   longitude numeric(10,7),
+  delivery_boy_id uuid references delivery_boys(id) on delete set null,  -- कौन सा डिलीवरी बॉय डिलीवर कर रहा है
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -230,6 +248,7 @@ create index if not exists idx_orders_status on orders(order_status);
 create index if not exists idx_orders_created on orders(created_at desc);
 create index if not exists idx_order_items_order on order_items(order_id);
 create index if not exists idx_customers_phone on customers(phone);
+create index if not exists idx_orders_delivery_boy on orders(delivery_boy_id);
 
 -- =========================================================
 -- updated_at ऑटो-अपडेट ट्रिगर
@@ -285,6 +304,7 @@ alter table order_items enable row level security;
 alter table payments enable row level security;
 alter table admin_users enable row level security;
 alter table sellers enable row level security;
+alter table delivery_boys enable row level security;
 
 -- सहायक फंक्शन: क्या मौजूदा उपयोगकर्ता एडमिन है?
 create or replace function is_admin()
@@ -347,6 +367,12 @@ create policy "orders_admin_update" on orders for update using (is_admin());
 create policy "orders_public_update_payment" on orders for update using (true)
   with check (order_status in ('नया ऑर्डर','भुगतान सफल'));
 create policy "orders_admin_delete" on orders for delete using (is_admin());
+-- डिलीवरी बॉय (PIN लॉगिन) को इन स्टेटस के बीच ऑर्डर आगे बढ़ाने की अनुमति
+create policy "orders_delivery_update" on orders for update using (
+  order_status in ('स्वीकार किया गया','सामान तैयार हो रहा है','डिलीवरी के लिए निकल गया')
+) with check (
+  order_status in ('सामान तैयार हो रहा है','डिलीवरी के लिए निकल गया','डिलीवरी पूरी हुई')
+);
 
 -- ---------- order_items ----------
 create policy "order_items_public_insert" on order_items for insert with check (true);
@@ -371,6 +397,12 @@ create policy "sellers_self_read" on sellers for select using (
 create policy "sellers_self_signup" on sellers for insert with check (auth.uid() = id);
 create policy "sellers_self_update" on sellers for update using (auth.uid() = id or is_admin());
 create policy "sellers_admin_delete" on sellers for delete using (is_admin());
+
+-- ---------- delivery_boys: पिन जांचने के लिए पढ़ना सबके लिए, बाकी सिर्फ एडमिन ----------
+create policy "delivery_boys_public_read" on delivery_boys for select using (true);
+create policy "delivery_boys_admin_write" on delivery_boys for insert with check (is_admin());
+create policy "delivery_boys_admin_update" on delivery_boys for update using (is_admin());
+create policy "delivery_boys_admin_delete" on delivery_boys for delete using (is_admin());
 
 -- =========================================================
 -- शुरुआती डेमो डेटा (श्रेणियाँ)
@@ -512,6 +544,12 @@ on conflict do nothing;
 -- अगर आपने पहले से schema.sql (seller_id वाला order_items) चला रखी है तो सिर्फ यह चलाएं:
 --
 -- alter table order_items add column if not exists seller_name text;
+-- =========================================================
+
+-- =========================================================
+-- MIGRATION: डिलीवरी बॉय (PIN लॉगिन) मॉड्यूल जोड़ने के लिए,
+-- अगर आपने पहले से schema.sql चला रखी है तो supabase/delivery_boy_module.sql
+-- फाइल पूरी की पूरी Supabase SQL Editor में चलाएं (दोबारा चलाने के लिए भी सुरक्षित है)।
 -- =========================================================
 
 -- =========================================================

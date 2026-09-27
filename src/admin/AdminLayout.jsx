@@ -14,6 +14,7 @@ const links = [
   { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
   { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
+  { to: '/admin/delivery-boys', label: 'डिलीवरी बॉय', icon: '🛵' },
   { to: '/admin/customers', label: 'ग्राहक', icon: '👥' },
   { to: '/admin/reports', label: 'रिपोर्ट', icon: '📈' },
 ]
