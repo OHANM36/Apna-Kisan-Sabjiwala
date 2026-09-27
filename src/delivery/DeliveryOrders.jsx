@@ -17,6 +17,9 @@ export default function DeliveryOrders() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
   const [expanded, setExpanded] = useState(null)
+  const [confirmOrder, setConfirmOrder] = useState(null)
+  const [confirmPin, setConfirmPin] = useState('')
+  const [confirmError, setConfirmError] = useState('')
 
   const loadOrders = useCallback(async () => {
     setLoading(true)
@@ -63,6 +66,30 @@ export default function DeliveryOrders() {
     await supabase.from('orders').update({ order_status: 'डिलीवरी पूरी हुई' }).eq('id', order.id)
     setBusyId(null)
     loadOrders()
+  }
+
+  function openConfirm(order) {
+    setConfirmOrder(order)
+    setConfirmPin('')
+    setConfirmError('')
+  }
+
+  function closeConfirm() {
+    setConfirmOrder(null)
+    setConfirmPin('')
+    setConfirmError('')
+  }
+
+  async function submitConfirmPin(e) {
+    e.preventDefault()
+    if (!confirmOrder) return
+    if (confirmPin.trim() !== (confirmOrder.delivery_pin || '')) {
+      setConfirmError('गलत पिन! ग्राहक से सही 4 अंकों का पिन पूछें।')
+      return
+    }
+    const order = confirmOrder
+    closeConfirm()
+    await markDelivered(order)
   }
 
   return (
@@ -154,7 +181,7 @@ export default function DeliveryOrders() {
 
               {tab === 'mine' && (
                 <button
-                  onClick={() => markDelivered(o)}
+                  onClick={() => openConfirm(o)}
                   disabled={busyId === o.id}
                   className="btn-primary w-full mt-2 py-2.5 text-sm"
                 >
@@ -171,6 +198,42 @@ export default function DeliveryOrders() {
               {tab === 'done' && 'अभी तक कोई डिलीवरी पूरी नहीं हुई'}
             </p>
           )}
+        </div>
+      )}
+
+      {confirmOrder && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end md:items-center justify-center p-3">
+          <form onSubmit={submitConfirmPin} className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-extrabold text-lg text-gray-800">डिलीवरी पिन कन्फर्म करें</h2>
+              <button type="button" onClick={closeConfirm} className="text-gray-400 text-xl">×</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              {confirmOrder.order_number} — ग्राहक ({confirmOrder.customer_name}) से 4 अंकों का डिलीवरी पिन पूछें और यहाँ डालें।
+            </p>
+            <input
+              autoFocus
+              required
+              inputMode="numeric"
+              maxLength={4}
+              className="input-field text-center text-2xl font-mono tracking-[0.5em]"
+              value={confirmPin}
+              onChange={(e) => {
+                setConfirmError('')
+                setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+              }}
+              placeholder="••••"
+            />
+            {confirmError && <p className="text-red-500 text-sm font-semibold mt-2">{confirmError}</p>}
+            <div className="flex gap-3 mt-5">
+              <button type="button" onClick={closeConfirm} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 font-bold text-gray-600">
+                रद्द करें
+              </button>
+              <button type="submit" disabled={confirmPin.length !== 4} className="flex-1 btn-primary">
+                कन्फर्म करें
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

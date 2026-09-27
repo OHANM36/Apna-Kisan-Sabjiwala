@@ -1,5 +1,5 @@
 -- =========================================================
--- अपना किसान सब्ज़ीवाला - डिलीवरी बॉय (PIN लॉगिन) मॉड्यूल
+-- अपना किसान सब्ज़ीवाला - डिलीवरी बॉय (PIN लॉगिन) + ग्राहक डिलीवरी-कन्फर्मेशन पिन मॉड्यूल
 -- अगर आपने पहले से schema.sql चला रखी है, तो सिर्फ यह फाइल
 -- Supabase Dashboard > SQL Editor में चलाएं। यह दोबारा चलाने के लिए भी सुरक्षित है।
 -- =========================================================
@@ -22,6 +22,29 @@ create unique index if not exists idx_delivery_boys_active_pin
 -- ऑर्डर को यह पता चले कि कौन सा डिलीवरी बॉय उसे डिलीवर कर रहा है
 alter table orders add column if not exists delivery_boy_id uuid references delivery_boys(id) on delete set null;
 create index if not exists idx_orders_delivery_boy on orders(delivery_boy_id);
+
+-- =========================================================
+-- ग्राहक डिलीवरी-कन्फर्मेशन पिन: हर ऑर्डर पर 4 अंकों का रैंडम पिन,
+-- ग्राहक ऑर्डर कन्फर्मेशन पेज पर देखता है, डिलीवरी बॉय को सामान लेते वक्त बताता है
+-- =========================================================
+alter table orders add column if not exists delivery_pin text;
+
+create or replace function generate_delivery_pin()
+returns trigger as $$
+begin
+  if new.delivery_pin is null then
+    new.delivery_pin := lpad(floor(random() * 10000)::text, 4, '0');
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_delivery_pin on orders;
+create trigger trg_delivery_pin before insert on orders
+  for each row execute function generate_delivery_pin();
+
+-- पहले से मौजूद (अधूरे) ऑर्डर्स को भी पिन दे दें
+update orders set delivery_pin = lpad(floor(random() * 10000)::text, 4, '0') where delivery_pin is null;
 
 -- =========================================================
 -- RLS: डिलीवरी बॉय सुरक्षा
@@ -56,4 +79,7 @@ create policy "orders_delivery_update" on orders for update using (
 -- पूर्ण। अब एडमिन पैनल में जाएं: /admin/delivery-boys
 -- वहाँ से नया डिलीवरी बॉय जोड़ें (नाम + 4 अंकों का पिन), फिर वह
 -- /delivery पर जाकर उसी पिन से लॉगिन कर सकेगा।
+--
+-- ग्राहक को उसका डिलीवरी-कन्फर्मेशन पिन ऑर्डर कन्फर्मेशन पेज पर दिखेगा।
+-- डिलीवरी बॉय "डिलीवर हो गया" दबाने पर वही पिन ग्राहक से पूछकर डालेगा।
 -- =========================================================

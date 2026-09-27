@@ -57,6 +57,14 @@ export default function OrderConfirmation() {
           </div>
         </div>
 
+        {order.delivery_pin && !['डिलीवरी पूरी हुई', 'रद्द'].includes(order.order_status) && (
+          <div className="card p-4 mb-4 border-2 border-kisan-orange bg-kisan-orange/5">
+            <h3 className="font-bold text-gray-700 text-sm mb-1">{t('order_delivery_pin_title')}</h3>
+            <p className="text-3xl font-extrabold tracking-[0.4em] text-kisan-dark text-center my-2">{order.delivery_pin}</p>
+            <p className="text-xs text-gray-500">{t('order_delivery_pin_note')}</p>
+          </div>
+        )}
+
         <div className="card p-4 mb-4">
           <h3 className="font-bold text-gray-700 text-sm mb-3">{t('order_details')}</h3>
           <div className="flex flex-col gap-2 mb-3">

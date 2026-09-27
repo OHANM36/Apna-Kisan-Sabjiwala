@@ -203,6 +203,7 @@ create table if not exists orders (
   latitude numeric(10,7),
   longitude numeric(10,7),
   delivery_boy_id uuid references delivery_boys(id) on delete set null,  -- कौन सा डिलीवरी बॉय डिलीवर कर रहा है
+  delivery_pin text,  -- ग्राहक द्वारा डिलीवरी बॉय को बताया जाने वाला 4 अंकों का पिन (डिलीवरी कन्फर्म करने के लिए)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -288,6 +289,25 @@ $$ language plpgsql;
 drop trigger if exists trg_order_number on orders;
 create trigger trg_order_number before insert on orders
   for each row execute function generate_order_number();
+
+-- =========================================================
+-- डिलीवरी पिन ऑटो-जनरेशन (हर ऑर्डर पर 4 अंकों का रैंडम पिन)
+-- ग्राहक यह पिन ऑर्डर कन्फर्मेशन पेज पर देखता है और डिलीवरी के समय
+-- डिलीवरी बॉय को बताता है — इससे साबित होता है कि सामान सही व्यक्ति तक पहुँचा
+-- =========================================================
+create or replace function generate_delivery_pin()
+returns trigger as $$
+begin
+  if new.delivery_pin is null then
+    new.delivery_pin := lpad(floor(random() * 10000)::text, 4, '0');
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_delivery_pin on orders;
+create trigger trg_delivery_pin before insert on orders
+  for each row execute function generate_delivery_pin();
 
 -- =========================================================
 -- RLS (Row Level Security) चालू करें
@@ -547,7 +567,7 @@ on conflict do nothing;
 -- =========================================================
 
 -- =========================================================
--- MIGRATION: डिलीवरी बॉय (PIN लॉगिन) मॉड्यूल जोड़ने के लिए,
+-- MIGRATION: डिलीवरी बॉय (PIN लॉगिन) + ग्राहक डिलीवरी-कन्फर्मेशन पिन मॉड्यूल जोड़ने के लिए,
 -- अगर आपने पहले से schema.sql चला रखी है तो supabase/delivery_boy_module.sql
 -- फाइल पूरी की पूरी Supabase SQL Editor में चलाएं (दोबारा चलाने के लिए भी सुरक्षित है)।
 -- =========================================================

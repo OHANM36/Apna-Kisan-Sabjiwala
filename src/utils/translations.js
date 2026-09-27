@@ -93,6 +93,11 @@ const translations = {
   // Order Confirmation
   order_success: { hi: 'आपका ऑर्डर सफलतापूर्वक दर्ज हो गया है।', en: 'Your order has been placed successfully.' },
   order_number: { hi: 'ऑर्डर नंबर', en: 'Order Number' },
+  order_delivery_pin_title: { hi: '🔐 आपका डिलीवरी पिन', en: '🔐 Your Delivery PIN' },
+  order_delivery_pin_note: {
+    hi: 'सामान मिलने पर यह पिन डिलीवरी बॉय को बताएं — इससे आपकी डिलीवरी कन्फर्म होगी।',
+    en: 'Share this PIN with the delivery person when you receive your order — it confirms your delivery.',
+  },
   order_status_title: { hi: 'ऑर्डर की स्थिति', en: 'Order Status' },
   order_details: { hi: 'ऑर्डर का विवरण', en: 'Order Details' },
   order_delivery_address: { hi: 'डिलीवरी पता', en: 'Delivery Address' },

@@ -82,6 +82,9 @@ export default function AdminOrders() {
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 mb-2">{o.full_address}{o.mohalla ? `, ${o.mohalla}` : ''}, {o.city} - {o.pincode}</p>
                 <p className="text-xs text-gray-500 mb-2">डिलीवरी: {o.delivery_date} • {o.delivery_time_slot}</p>
+                {o.delivery_pin && (
+                  <p className="text-xs text-gray-500 mb-2">डिलीवरी पिन: <span className="font-mono font-bold text-gray-700">{o.delivery_pin}</span></p>
+                )}
 
                 {o.latitude && o.longitude ? (
                   <div className="mb-3">
