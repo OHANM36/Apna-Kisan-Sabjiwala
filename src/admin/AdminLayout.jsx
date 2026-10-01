@@ -4,6 +4,9 @@ import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
 import { playNewOrderSound, playStatusChangeSound } from '../utils/sounds'
 import AdminToastList from '../components/AdminToastList'
+import { useLanguage } from '../context/LanguageContext'
+import { usePT } from '../pricing/strings'
+import { PendingSyncBanner } from '../pricing/ui/common'
 import logo from '../assets/logo.png'
 
 const links = [
@@ -11,6 +14,11 @@ const links = [
   { to: '/admin/vegetables', label: 'सब्ज़ियाँ', icon: '🥕' },
   { to: '/admin/categories', label: 'श्रेणियाँ', icon: '📂' },
   { to: '/admin/bulk-edit', label: 'कीमतें बदलें', icon: '💰' },
+  { to: '/admin/todays-prices', labelKey: 'nav_todays_prices', icon: '🧮', ownerOnly: true },
+  { to: '/admin/product-pricing', labelKey: 'nav_product_pricing', icon: '🏷️', ownerOnly: true },
+  { to: '/admin/pricing-dashboard', labelKey: 'nav_pricing_dashboard', icon: '💹', ownerOnly: true },
+  { to: '/admin/pricing-settings', labelKey: 'nav_pricing_settings', icon: '⚙️', ownerOnly: true },
+  { to: '/admin/stock', labelKey: 'nav_stock', icon: '📦' },
   { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
   { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
@@ -20,7 +28,9 @@ const links = [
 ]
 
 export default function AdminLayout() {
-  const { session, isAdmin, loading, logout, adminProfile } = useAdminAuth()
+  const { session, isAdmin, isOwner, loading, logout, adminProfile } = useAdminAuth()
+  const pt = usePT()
+  const { language, toggleLanguage } = useLanguage()
   const [toasts, setToasts] = useState([])
   const toastIdRef = useRef(0)
 
@@ -91,7 +101,7 @@ export default function AdminLayout() {
           </div>
         </div>
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible">
-          {links.map((l) => (
+          {links.filter((l) => !l.ownerOnly || isOwner).map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
@@ -102,20 +112,23 @@ export default function AdminLayout() {
                 }`
               }
             >
-              <span>{l.icon}</span> {l.label}
+              <span>{l.icon}</span> {l.labelKey ? pt(l.labelKey) : l.label}
             </NavLink>
           ))}
         </nav>
         <div className="hidden md:block p-5 mt-auto border-t border-white/10">
           <p className="text-xs text-green-200 mb-2">{adminProfile?.full_name}</p>
+          <button onClick={toggleLanguage} className="text-xs font-bold text-green-100 mb-2 block">{language === 'hi' ? 'English' : 'हिंदी'}</button>
           <button onClick={logout} className="text-xs font-bold text-red-300">लॉगआउट करें</button>
         </div>
       </aside>
 
       <main className="flex-1 p-4 md:p-8">
-        <div className="md:hidden flex justify-end mb-3">
+        <div className="md:hidden flex justify-end gap-4 mb-3">
+          <button onClick={toggleLanguage} className="text-xs font-bold text-gray-500">{language === 'hi' ? 'English' : 'हिंदी'}</button>
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
+        {isOwner && <PendingSyncBanner />}
         <Outlet />
       </main>
     </div>

@@ -9,12 +9,14 @@ import { useSettings } from '../context/SettingsContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
 import { matchesVegetableSearch } from '../utils/searchMatch'
+import { cachePublished, readPublishedCache } from '../pricing/priceCache'
 
 export default function Home() {
   const [vegetables, setVegetables] = useState([])
   const [categories, setCategories] = useState([])
   const [offers, setOffers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [offlineCache, setOfflineCache] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || null)
   const [search, setSearch] = useState('')
@@ -32,7 +34,7 @@ export default function Home() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: vegs }, { data: cats }, { data: offs }] = await Promise.all([
+    const [vegRes, catRes, offRes] = await Promise.all([
       supabase
         .from('vegetables')
         .select('*, categories(name, name_en, slug), sellers(business_name, photo_url)')
@@ -41,6 +43,22 @@ export default function Home() {
       supabase.from('categories').select('*').eq('is_active', true).order('display_order'),
       supabase.from('offers').select('*').eq('is_active', true),
     ])
+    if (vegRes.error || !vegRes.data) {
+      // नेटवर्क/सर्वर दिक्कत: आख़िरी सेव की गई प्रकाशित कीमतें दिखाएं
+      const cached = readPublishedCache()
+      if (cached) {
+        setVegetables(cached.vegetables)
+        setCategories(cached.categories || [])
+        setOfflineCache(true)
+        setLoading(false)
+        return
+      }
+    }
+    const vegs = vegRes.data
+    const cats = catRes.data
+    const offs = offRes.data
+    setOfflineCache(false)
+    if (vegs) cachePublished(vegs, cats || [])
     setVegetables(vegs || [])
     setCategories(cats || [])
     setOffers(offs || [])
@@ -63,6 +81,10 @@ export default function Home() {
         <div className="bg-red-100 text-red-700 text-center text-sm font-semibold py-2 px-4 shrink-0">
           {t('home_store_closed')}
         </div>
+      )}
+
+      {offlineCache && (
+        <div className="bg-amber-100 text-amber-800 text-center text-xs font-semibold py-2 px-4 shrink-0">{t('home_offline_prices')}</div>
       )}
 
       {/* बाईं तरफ श्रेणी sidebar (स्थिर/freeze) + दाईं तरफ मुख्य कंटेंट (सिर्फ यही स्क्रॉल होगा) */}

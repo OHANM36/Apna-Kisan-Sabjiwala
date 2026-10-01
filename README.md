@@ -290,3 +290,6 @@ Relationship:
 ### Supabase migration
 
 Run `supabase/vendor_seller_association.sql` after the main `supabase/schema.sql`. This adds the public approved/active seller read policy and indexes required for the association.
+
+## डायनामिक प्राइसिंग
+खरीद कीमत से बिक्री कीमत अपने आप निकालने वाला सिस्टम — सेटअप और उपयोग: [PRICING_ENGINE.md](./PRICING_ENGINE.md)

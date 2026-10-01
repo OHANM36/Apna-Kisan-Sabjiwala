@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
@@ -8,12 +8,13 @@ import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee, DELIVERY_TIME_SLOTS } from '../utils/format'
+import { calculateDeliveryFee, minOrderShortfall } from '../pricing/delivery'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
 
 export default function Checkout() {
-  const { items, subtotal, clearCart } = useCart()
-  const { settings } = useSettings()
+  const { items, subtotal, clearCart, syncPrices } = useCart()
+  const { settings, deliveryRules, loading: settingsLoading } = useSettings()
   const { t } = useLanguage()
   const navigate = useNavigate()
 
@@ -68,9 +69,14 @@ export default function Checkout() {
     }
   }
 
-  const deliveryFee =
-    settings.free_delivery_above && subtotal >= settings.free_delivery_above ? 0 : settings.delivery_fee
+  const { fee: deliveryFee } = calculateDeliveryFee(subtotal, deliveryRules, settings)
   const total = Math.max(0, subtotal + deliveryFee - discount)
+  const shortfall = minOrderShortfall(subtotal, settings.min_order_value)
+
+  // सीधे /checkout खोलने पर भी न्यूनतम ऑर्डर लागू रहे
+  useEffect(() => {
+    if (!settingsLoading && items.length > 0 && shortfall > 0) navigate('/cart', { replace: true })
+  }, [settingsLoading, items.length, shortfall, navigate])
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -115,7 +121,19 @@ export default function Checkout() {
   async function handlePayNow() {
     if (!validate()) return
     setPaymentError('')
+    if (shortfall > 0) {
+      setPaymentError(t('cart_min_order_msg').replace('{min}', settings.min_order_value).replace('{add}', shortfall))
+      return
+    }
     setSubmitting(true)
+
+    // ऑर्डर बनाने से ठीक पहले कीमतें ताज़ा प्रकाशित कीमतों से मिलाएं; बदली हों तो ग्राहक को दिखाकर रुकें
+    const fresh = await syncPrices()
+    if (fresh.removed.length || fresh.changed.length) {
+      setPaymentError(fresh.removed.length ? t('cart_items_removed') : t('cart_prices_updated'))
+      setSubmitting(false)
+      return
+    }
 
     localStorage.setItem(
       STORAGE_KEY_CUSTOMER,

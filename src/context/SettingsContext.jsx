@@ -14,6 +14,7 @@ const DEFAULTS = {
 
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULTS)
+  const [deliveryRules, setDeliveryRules] = useState([])
   const [loading, setLoading] = useState(true)
 
   async function loadSettings() {
@@ -26,6 +27,9 @@ export function SettingsProvider({ children }) {
     if (!error && data) {
       setSettings({ ...DEFAULTS, ...data })
     }
+    // डिलीवरी नियम (वैकल्पिक): टेबल न हो/खाली हो तो ऊपर की delivery_settings से ही पुराना व्यवहार चलता है
+    const rules = await supabase.from('delivery_rules').select('*').eq('is_active', true).order('min_subtotal')
+    if (!rules.error && Array.isArray(rules.data)) setDeliveryRules(rules.data)
     setLoading(false)
   }
 
@@ -34,7 +38,7 @@ export function SettingsProvider({ children }) {
   }, [])
 
   return (
-    <SettingsContext.Provider value={{ settings, loading, reloadSettings: loadSettings }}>
+    <SettingsContext.Provider value={{ settings, deliveryRules, loading, reloadSettings: loadSettings }}>
       {children}
     </SettingsContext.Provider>
   )

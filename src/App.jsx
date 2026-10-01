@@ -26,6 +26,11 @@ import AdminCustomers from './admin/AdminCustomers'
 import AdminReports from './admin/AdminReports'
 import AdminSellers from './admin/AdminSellers'
 import AdminDeliveryBoys from './admin/AdminDeliveryBoys'
+import AdminTodaysPrices from './admin/AdminTodaysPrices'
+import AdminProductPricing from './admin/AdminProductPricing'
+import AdminPricingSettings from './admin/AdminPricingSettings'
+import AdminPricingDashboard from './admin/AdminPricingDashboard'
+import AdminStock from './admin/AdminStock'
 
 import { SellerAuthProvider } from './context/SellerAuthContext'
 import SellerSignup from './seller/SellerSignup'
@@ -78,6 +83,11 @@ export default function App() {
                   <Route path="reports" element={<AdminReports />} />
                   <Route path="sellers" element={<AdminSellers />} />
                   <Route path="delivery-boys" element={<AdminDeliveryBoys />} />
+                  <Route path="todays-prices" element={<AdminTodaysPrices />} />
+                  <Route path="product-pricing" element={<AdminProductPricing />} />
+                  <Route path="pricing-settings" element={<AdminPricingSettings />} />
+                  <Route path="pricing-dashboard" element={<AdminPricingDashboard />} />
+                  <Route path="stock" element={<AdminStock />} />
                 </Route>
               </Routes>
             </AdminAuthProvider>

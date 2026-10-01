@@ -1,19 +1,38 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
 import { useLanguage } from '../context/LanguageContext'
 import Header from '../components/Header'
 import { formatRupee } from '../utils/format'
+import { calculateDeliveryFee, nextDeliveryBenefit, minOrderShortfall } from '../pricing/delivery'
 
 export default function Cart() {
-  const { items, increaseQty, decreaseQty, removeFromCart, subtotal } = useCart()
-  const { settings } = useSettings()
+  const { items, increaseQty, decreaseQty, removeFromCart, subtotal, syncPrices } = useCart()
+  const { settings, deliveryRules } = useSettings()
   const { t } = useLanguage()
   const navigate = useNavigate()
 
-  const belowMin = subtotal < settings.min_order_value
-  const deliveryFee =
-    settings.free_delivery_above && subtotal >= settings.free_delivery_above ? 0 : settings.delivery_fee
+  const [notice, setNotice] = useState('')
+
+  // कार्ट खुलते ही प्रकाशित (नई) कीमतों से मिलाएं — पुरानी कीमत पर ऑर्डर न बने
+  useEffect(() => {
+    let alive = true
+    syncPrices().then((r) => {
+      if (!alive) return
+      if (r.removed.length) setNotice(t('cart_items_removed'))
+      else if (r.changed.length) setNotice(t('cart_prices_updated'))
+    })
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const shortfall = minOrderShortfall(subtotal, settings.min_order_value)
+  const belowMin = shortfall > 0
+  const { fee: deliveryFee } = calculateDeliveryFee(subtotal, deliveryRules, settings)
+  const benefit = !belowMin ? nextDeliveryBenefit(subtotal, deliveryRules, settings) : null
   const total = subtotal + deliveryFee
 
   if (items.length === 0) {
@@ -68,9 +87,19 @@ export default function Cart() {
           ))}
         </div>
 
+        {notice && (
+          <div className="mt-4 bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold rounded-xl px-4 py-3">{notice}</div>
+        )}
+
         {belowMin && (
           <div className="mt-4 bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3">
-            {t('cart_below_min')} {formatRupee(settings.min_order_value)} {t('cart_add_more')} {formatRupee(settings.min_order_value - subtotal)}.
+            {t('cart_min_order_msg').replace('{min}', settings.min_order_value).replace('{add}', shortfall)}
+          </div>
+        )}
+
+        {benefit && (
+          <div className="mt-4 bg-green-50 border border-green-200 text-green-700 text-sm font-semibold rounded-xl px-4 py-3">
+            {(benefit.isFree ? t('cart_delivery_free_hint') : t('cart_delivery_cheaper_hint')).replace('{add}', benefit.addAmount).replace('{fee}', benefit.fee)}
           </div>
         )}
 

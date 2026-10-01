@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useAdminAuth } from '../context/AdminAuthContext'
+import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, ORDER_STATUS_STEPS } from '../utils/format'
 import Loading from '../components/Loading'
@@ -10,6 +12,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('सभी')
   const [expanded, setExpanded] = useState(null)
+  const { isOwner } = useAdminAuth()
 
   useEffect(() => {
     loadOrders()
@@ -124,6 +127,7 @@ export default function AdminOrders() {
                     </div>
                   ))}
                 </div>
+                {isOwner && <OrderProfit orderId={o.id} />}
               </div>
             )}
 

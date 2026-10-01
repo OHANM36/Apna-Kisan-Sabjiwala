@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
 import { formatRupee } from '../utils/format'
 import Loading from '../components/Loading'
@@ -11,6 +13,7 @@ export default function AdminBulkEdit() {
   const [savedMsg, setSavedMsg] = useState('')
   const [bulkPercent, setBulkPercent] = useState('')
   const [search, setSearch] = useState('')
+  const { isOwner } = useAdminAuth()
 
   useEffect(() => {
     loadVegetables()
@@ -57,15 +60,25 @@ export default function AdminBulkEdit() {
     setSavedMsg('')
     const changed = vegetables.filter((v) => Number(prices[v.id]) !== Number(v.price))
 
+    // हर अपडेट का नतीजा जांचें — पहले त्रुटियाँ चुपचाप छूट जाती थीं.
+    // जिन सब्ज़ियों की कीमत "ऑटो-प्राइसिंग" से चलती है, उनके लिए डेटाबेस सीधा बदलाव रोकता है (न्यूनतम-कीमत सुरक्षा और हिस्ट्री के लिए).
+    let ok = 0
+    const failed = []
     for (const v of changed) {
-      await supabase
+      const { error } = await supabase
         .from('vegetables')
         .update({ price: Number(prices[v.id]) })
         .eq('id', v.id)
+      if (error) failed.push(v.name)
+      else ok++
     }
 
     setSaving(false)
-    setSavedMsg(`✅ ${changed.length} सब्ज़ियों की कीमत अपडेट हो गई`)
+    setSavedMsg(
+      failed.length
+        ? `✅ ${ok} अपडेट हुईं • ❌ ${failed.length} नहीं हुईं (ऑटो-प्राइसिंग वाली सब्ज़ी की कीमत "आज की कीमतें" से बदलें): ${failed.join(', ')}`
+        : `✅ ${ok} सब्ज़ियों की कीमत अपडेट हो गई`
+    )
     loadVegetables()
   }
 
@@ -76,6 +89,11 @@ export default function AdminBulkEdit() {
   return (
     <div>
       <h1 className="font-extrabold text-xl text-gray-800 mb-5">कीमतें एक साथ बदलें (Bulk Edit)</h1>
+      {isOwner && (
+        <Link to="/admin/todays-prices" className="block bg-green-50 border border-green-300 text-green-800 rounded-2xl px-4 py-3 mb-4 text-sm font-bold">
+          🧮 नया: खरीद कीमत डालें, बिक्री कीमत अपने आप निकले — "आज की कीमतें" खोलें →
+        </Link>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 flex flex-col md:flex-row gap-3 md:items-end">
         <div className="flex-1">

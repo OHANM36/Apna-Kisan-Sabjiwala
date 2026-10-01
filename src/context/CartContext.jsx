@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { supabase } from '../supabaseClient'
+import { syncCartWithCatalog } from '../pricing/cartSync'
 
 const CartContext = createContext(null)
 const STORAGE_KEY = 'aks_cart_v1'
@@ -68,6 +70,20 @@ export function CartProvider({ children }) {
     setItems([])
   }
 
+  // प्रकाशित कीमतों से कार्ट मिलाएं. नेटवर्क न हो तो कुछ नहीं बदलता ({ok:false}) — कैश्ड कार्ट चलता रहे।
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const syncPrices = useCallback(async () => {
+    const current = itemsRef.current
+    if (current.length === 0) return { ok: true, changed: [], removed: [] }
+    const ids = [...new Set(current.map((i) => i.vegetableId || i.id))]
+    const { data, error } = await supabase.from('vegetables').select('id, price, price_tiers, is_active').in('id', ids)
+    if (error || !data) return { ok: false, changed: [], removed: [] }
+    const res = syncCartWithCatalog(current, data)
+    if (res.changed.length || res.removed.length) setItems(res.items)
+    return { ok: true, changed: res.changed, removed: res.removed }
+  }, [])
+
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0)
   const subtotal = items.reduce((sum, i) => sum + i.quantity * i.price, 0)
 
@@ -82,6 +98,7 @@ export function CartProvider({ children }) {
         clearCart,
         totalItems,
         subtotal,
+        syncPrices,
       }}
     >
       {children}

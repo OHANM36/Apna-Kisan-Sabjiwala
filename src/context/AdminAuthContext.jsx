@@ -44,7 +44,7 @@ export function AdminAuthProvider({ children }) {
   }
 
   return (
-    <AdminAuthContext.Provider value={{ session, adminProfile, loading, login, logout, isAdmin: !!adminProfile }}>
+    <AdminAuthContext.Provider value={{ session, adminProfile, loading, login, logout, isAdmin: !!adminProfile, isOwner: adminProfile?.role === 'admin' }}>
       {children}
     </AdminAuthContext.Provider>
   )
