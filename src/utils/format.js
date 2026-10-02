@@ -55,3 +55,58 @@ export function sortOrders(list) {
     stepIdx(a) - stepIdx(b) ||
     new Date(b.created_at) - new Date(a.created_at))
 }
+
+// ---- डिलीवरी की तारीख/समय की जाँच (भारत का समय — सर्वर भी Asia/Kolkata की तारीख से जाँचता है) ----
+
+// स्लॉट (शुरू, ख़त्म) घंटे — DELIVERY_TIME_SLOTS के नाम से मेल खाने चाहिए
+export const DELIVERY_SLOT_HOURS = {
+  'सुबह 7 - 9 बजे': [7, 9],
+  'सुबह 9 - 11 बजे': [9, 11],
+  'दोपहर 12 - 2 बजे': [12, 14],
+  'शाम 4 - 6 बजे': [16, 18],
+  'शाम 6 - 8 बजे': [18, 20],
+}
+
+// स्लॉट शुरू होने से कम से कम इतने मिनट पहले ऑर्डर चाहिए (तैयारी का समय)
+export const SLOT_LEAD_MINUTES = 60
+
+// अभी का भारतीय समय: { date: 'YYYY-MM-DD', minutes: दिन के शुरू से बीते मिनट }
+export function istNow(base = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(base)
+  const g = (t) => parts.find((p) => p.type === t)?.value
+  return { date: `${g('year')}-${g('month')}-${g('day')}`, minutes: Number(g('hour')) * 60 + Number(g('minute')) }
+}
+
+export function addDays(dateStr, n) {
+  const d = new Date(`${dateStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+// इस तारीख पर यह स्लॉट अभी चुना जा सकता है?
+export function isSlotAvailable(slot, dateStr, now = istNow()) {
+  if (!dateStr || dateStr < now.date) return false
+  if (dateStr > now.date) return true
+  const hours = DELIVERY_SLOT_HOURS[slot]
+  if (!hours) return true // अनजान स्लॉट: सर्वर तय करेगा
+  return hours[0] * 60 >= now.minutes + SLOT_LEAD_MINUTES
+}
+
+// अभी सबसे पहली उपलब्ध (तारीख, स्लॉट): आज कोई स्लॉट बचा हो तो आज, वरना कल का पहला
+export function defaultDelivery(now = istNow()) {
+  const todaySlot = DELIVERY_TIME_SLOTS.find((s) => isSlotAvailable(s, now.date, now))
+  if (todaySlot) return { date: now.date, slot: todaySlot, todayFull: false }
+  return { date: addDays(now.date, 1), slot: DELIVERY_TIME_SLOTS[0], todayFull: true }
+}
+
+// एडमिन के लिए: डिलीवरी का समय निकल गया पर ऑर्डर अभी पूरा/रद्द नहीं हुआ?
+export function isDeliveryOverdue(order, now = istNow()) {
+  if (!order?.delivery_date || ['डिलीवरी पूरी हुई', 'रद्द'].includes(order.order_status)) return false
+  if (order.delivery_date < now.date) return true
+  if (order.delivery_date > now.date) return false
+  const hours = DELIVERY_SLOT_HOURS[order.delivery_time_slot]
+  return hours ? now.minutes > hours[1] * 60 : false
+}

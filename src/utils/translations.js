@@ -6,6 +6,11 @@ const translations = {
   app_name: { hi: 'अपना किसान सब्ज़ीवाला', en: 'Apna Kisan Sabjiwala' },
   app_tagline: { hi: 'ताज़ी सब्ज़ियाँ — सीधे आपके घर तक', en: 'Fresh vegetables — straight to your door' },
 
+  // चेकआउट: डिलीवरी समय की जाँच
+  checkout_slot_passed: { hi: 'समय निकल गया', en: 'time passed' },
+  checkout_slot_invalid: { hi: 'यह समय निकल चुका है — कोई और स्लॉट या तारीख चुनें', en: 'This slot has passed — pick another slot or date' },
+  checkout_today_full: { hi: 'आज के सभी स्लॉट पूरे हो गए, इसलिए कल की तारीख चुनी गई है', en: "Today's slots are over, so tomorrow is selected" },
+
   // PWA इंस्टॉल
   install_app: { hi: 'ऐप इंस्टॉल करें', en: 'Install app' },
   install_ios_help: { hi: 'Safari में नीचे "Share" (⬆️) दबाएँ, फिर "Add to Home Screen" चुनें।', en: 'In Safari, tap the Share (⬆️) button, then choose "Add to Home Screen".' },

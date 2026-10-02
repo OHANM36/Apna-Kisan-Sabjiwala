@@ -8,7 +8,7 @@ import { codAvailability, PAYMENT_COD, PAYMENT_ONLINE } from '../utils/paymentMe
 import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
-import { formatRupee, DELIVERY_TIME_SLOTS } from '../utils/format'
+import { formatRupee, DELIVERY_TIME_SLOTS, istNow, addDays, isSlotAvailable, defaultDelivery } from '../utils/format'
 import { calculateDeliveryFee, minOrderShortfall } from '../pricing/delivery'
 import { tierKeyFromLineId } from '../pricing/cartSync'
 import { safeGet, safeSet, safeRemove, safeJson } from '../utils/safeStorage'
@@ -16,13 +16,6 @@ import { saveMyOrder } from '../utils/myOrders'
 import { friendlyError, withTimeout } from '../utils/errors'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
-
-// ग्राहक की स्थानीय तारीख (toISOString UTC देती है — रात में तारीख एक दिन पीछे दिखती थी)
-function localDate(plusDays) {
-  const d = new Date()
-  d.setDate(d.getDate() + plusDays)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export default function Checkout() {
   const { items, subtotal, clearCart, syncPrices } = useCart()
@@ -33,6 +26,14 @@ export default function Checkout() {
   const savedCustomer = safeJson(STORAGE_KEY_CUSTOMER, {}) || {}
   const attempt = useRef({ signature: '', key: '', placed: null })
 
+  // अभी का भारतीय समय (हर मिनट ताज़ा) — तारीख/स्लॉट की जाँच इसी से
+  const [now, setNow] = useState(() => istNow())
+  useEffect(() => {
+    const id = setInterval(() => setNow(istNow()), 60000)
+    return () => clearInterval(id)
+  }, [])
+  const initialDelivery = useRef(defaultDelivery(istNow())).current
+
   const [form, setForm] = useState({
     name: savedCustomer.name || '',
     phone: savedCustomer.phone || '',
@@ -40,8 +41,8 @@ export default function Checkout() {
     mohalla: savedCustomer.mohalla || '',
     city: savedCustomer.city || 'Bhopal',
     pincode: savedCustomer.pincode || '',
-    deliveryDate: localDate(0), // आज की तारीख अपने-आप भरी रहे (ग्राहक बदल सकता है)
-    deliveryTime: DELIVERY_TIME_SLOTS[0],
+    deliveryDate: initialDelivery.date, // पहली उपलब्ध तारीख/स्लॉट अपने-आप भरा (ग्राहक बदल सकता है)
+    deliveryTime: initialDelivery.slot,
     notes: '',
     latitude: null,
     longitude: null,
@@ -93,6 +94,22 @@ export default function Checkout() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  // आज कोई स्लॉट बचा है? नहीं तो सबसे जल्दी की तारीख कल है
+  const todayHasSlot = DELIVERY_TIME_SLOTS.some((sl) => isSlotAvailable(sl, now.date, now))
+  const minDate = todayHasSlot ? now.date : addDays(now.date, 1)
+  const maxDate = addDays(now.date, 14)
+
+  // समय आगे बढ़ने/तारीख बदलने पर पुरानी तारीख या निकल चुके स्लॉट को अपने-आप सुधारें
+  useEffect(() => {
+    setForm((f) => {
+      const date = !f.deliveryDate || f.deliveryDate < minDate ? minDate : f.deliveryDate
+      const slot = isSlotAvailable(f.deliveryTime, date, now)
+        ? f.deliveryTime
+        : DELIVERY_TIME_SLOTS.find((sl) => isSlotAvailable(sl, date, now)) || f.deliveryTime
+      return date === f.deliveryDate && slot === f.deliveryTime ? f : { ...f, deliveryDate: date, deliveryTime: slot }
+    })
+  }, [now, minDate])
+
   function validate() {
     const e = {}
     if (!form.name.trim()) e.name = 'नाम आवश्यक है'
@@ -101,6 +118,8 @@ export default function Checkout() {
     if (!form.city.trim()) e.city = 'शहर आवश्यक है'
     if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = 'सही पिन कोड डालें (6 अंक)'
     if (!form.deliveryDate) e.deliveryDate = 'डिलीवरी की तारीख चुनें'
+    else if (form.deliveryDate < minDate || form.deliveryDate > maxDate) e.deliveryDate = 'सही तारीख चुनें'
+    else if (!isSlotAvailable(form.deliveryTime, form.deliveryDate, istNow())) e.deliveryTime = t('checkout_slot_invalid')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -297,16 +316,18 @@ export default function Checkout() {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('checkout_delivery_date')} error={errors.deliveryDate}>
-              <input type="date" className="input-field" min={localDate(0)} max={localDate(14)} value={form.deliveryDate} onChange={(e) => updateField('deliveryDate', e.target.value)} />
+              <input type="date" className="input-field" min={minDate} max={maxDate} value={form.deliveryDate} onChange={(e) => updateField('deliveryDate', e.target.value)} />
             </Field>
-            <Field label={t('checkout_delivery_time')}>
+            <Field label={t('checkout_delivery_time')} error={errors.deliveryTime}>
               <select className="input-field" value={form.deliveryTime} onChange={(e) => updateField('deliveryTime', e.target.value)}>
-                {DELIVERY_TIME_SLOTS.map((slot) => (
-                  <option key={slot} value={slot}>{slot}</option>
-                ))}
+                {DELIVERY_TIME_SLOTS.map((slot) => {
+                  const ok = isSlotAvailable(slot, form.deliveryDate, now)
+                  return <option key={slot} value={slot} disabled={!ok}>{ok ? slot : `${slot} (${t('checkout_slot_passed')})`}</option>
+                })}
               </select>
             </Field>
           </div>
+          {!todayHasSlot && <p className="text-xs text-amber-700 font-semibold -mt-2">{t('checkout_today_full')}</p>}
 
           <Field label={t('checkout_extra_notes')}>
             <textarea className="input-field" rows={2} value={form.notes} onChange={(e) => updateField('notes', e.target.value)} placeholder={t('checkout_notes_placeholder')} />
