@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { NavLink, Navigate, Outlet } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
 import { playNewOrderSound, playStatusChangeSound } from '../utils/sounds'
@@ -11,21 +11,25 @@ import logo from '../assets/logo.png'
 
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
+  { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
   { to: '/admin/vegetables', label: 'सब्ज़ियाँ', icon: '🥕' },
   { to: '/admin/categories', label: 'श्रेणियाँ', icon: '📂' },
   { to: '/admin/bulk-edit', label: 'कीमतें बदलें', icon: '💰' },
   { to: '/admin/todays-prices', labelKey: 'nav_todays_prices', icon: '🧮', ownerOnly: true },
   { to: '/admin/product-pricing', labelKey: 'nav_product_pricing', icon: '🏷️', ownerOnly: true },
   { to: '/admin/pricing-dashboard', labelKey: 'nav_pricing_dashboard', icon: '💹', ownerOnly: true },
-  { to: '/admin/pricing-settings', labelKey: 'nav_pricing_settings', icon: '⚙️', ownerOnly: true },
-  { to: '/admin/payment-settings', label: 'भुगतान विकल्प (COD)', icon: '💵', ownerOnly: true },
   { to: '/admin/stock', labelKey: 'nav_stock', icon: '📦' },
-  { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
-  { to: '/admin/orders', label: 'ऑर्डर', icon: '📦' },
   { to: '/admin/delivery-boys', label: 'डिलीवरी बॉय', icon: '🛵' },
   { to: '/admin/customers', label: 'ग्राहक', icon: '👥' },
   { to: '/admin/reports', label: 'रिपोर्ट', icon: '📈' },
+]
+
+// "सेटिंग" टैब के अंदर के पेज
+const settingsLinks = [
+  { to: '/admin/pricing-settings', labelKey: 'nav_pricing_settings', icon: '🧮', ownerOnly: true },
+  { to: '/admin/payment-settings', label: 'भुगतान विकल्प (COD)', icon: '💵', ownerOnly: true },
+  { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
 ]
 
 export default function AdminLayout() {
@@ -34,6 +38,11 @@ export default function AdminLayout() {
   const { language, toggleLanguage } = useLanguage()
   const [toasts, setToasts] = useState([])
   const toastIdRef = useRef(0)
+  const { pathname } = useLocation()
+  const visibleSettings = settingsLinks.filter((l) => !l.ownerOnly || isOwner)
+  const settingsActive = visibleSettings.some((l) => pathname.startsWith(l.to))
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const showSettings = settingsOpen || settingsActive
 
   const pushToast = useCallback((message, type) => {
     const id = ++toastIdRef.current
@@ -119,6 +128,37 @@ export default function AdminLayout() {
               <span>{l.icon}</span> {l.labelKey ? pt(l.labelKey) : l.label}
             </NavLink>
           ))}
+
+          {visibleSettings.length > 0 && (
+            <div className="contents md:block md:mt-2 md:border-t md:border-white/10">
+              {/* डेस्कटॉप पर खुलने-बंद होने वाला "सेटिंग" टैब; मोबाइल पर आइटम सीधे पट्टी में दिखते हैं */}
+              <button
+                onClick={() => setSettingsOpen((o) => !o)}
+                className={`hidden md:flex w-full items-center justify-between px-5 py-3.5 text-sm font-extrabold ${
+                  settingsActive ? 'text-white' : 'text-green-100'
+                }`}
+                aria-expanded={showSettings}
+              >
+                <span className="flex items-center gap-3"><span>⚙️</span> सेटिंग</span>
+                <span className="text-xs">{showSettings ? '▴' : '▾'}</span>
+              </button>
+              <div className={showSettings ? 'contents md:block' : 'contents md:hidden'}>
+                {visibleSettings.map((l) => (
+                  <NavLink
+                    key={l.to}
+                    to={l.to}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-5 md:pl-10 py-3 text-sm font-semibold whitespace-nowrap ${
+                        isActive ? 'bg-white/10 border-l-4 border-kisan-orange' : 'text-green-100'
+                      }`
+                    }
+                  >
+                    <span>{l.icon}</span> {l.labelKey ? pt(l.labelKey) : l.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
         <div className="hidden md:block p-5 mt-auto border-t border-white/10">
           <p className="text-xs text-green-200 mb-2">{adminProfile?.full_name}</p>
