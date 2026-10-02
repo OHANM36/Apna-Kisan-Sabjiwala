@@ -25,3 +25,10 @@ export const ORDER_STATUS_STEPS = [
   'डिलीवरी के लिए निकल गया',
   'डिलीवरी पूरी हुई',
 ]
+
+// COD ऑर्डर में "भुगतान सफल" चरण नहीं होता (पैसा डिलीवरी पर मिलता है), इसलिए उसे सूची से हटाएँ।
+export function statusStepsFor(order) {
+  return order?.payment_method === 'COD'
+    ? ORDER_STATUS_STEPS.filter((s) => s !== 'भुगतान सफल')
+    : ORDER_STATUS_STEPS
+}

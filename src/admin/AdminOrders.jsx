@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
-import { formatRupee, formatDate, ORDER_STATUS_STEPS } from '../utils/format'
+import { formatRupee, formatDate, ORDER_STATUS_STEPS, statusStepsFor } from '../utils/format'
 import Loading from '../components/Loading'
 import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
 
@@ -151,7 +151,7 @@ export default function AdminOrders() {
                 onChange={(e) => updateStatus(o.id, e.target.value)}
                 className="input-field mt-1 text-sm py-2"
               >
-                {ALL_STATUSES.map((s) => (
+                {[...statusStepsFor(o), 'रद्द'].map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>

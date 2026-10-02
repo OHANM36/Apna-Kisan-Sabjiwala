@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useSettings } from '../context/SettingsContext'
 import { buildWhatsAppOrderLink } from '../utils/whatsapp'
-import { formatRupee, formatDate, ORDER_STATUS_STEPS } from '../utils/format'
+import { formatRupee, formatDate, statusStepsFor } from '../utils/format'
 import Header from '../components/Header'
 import Loading from '../components/Loading'
 import { getOrderToken, saveMyOrder } from '../utils/myOrders'
@@ -91,7 +91,8 @@ export default function OrderConfirmation() {
     </div>
   )
 
-  const currentStepIndex = ORDER_STATUS_STEPS.indexOf(order.order_status)
+  const statusSteps = statusStepsFor(order)
+  const currentStepIndex = statusSteps.indexOf(order.order_status)
   const cod = isCod(order)
   const paid = isPaid(order)
   const cancelled = order.order_status === 'रद्द'
@@ -135,7 +136,7 @@ export default function OrderConfirmation() {
         <div className="card p-4 mb-4">
           <h3 className="font-bold text-gray-700 text-sm mb-3">{t('order_status_title')}</h3>
           <div className="flex flex-col gap-3">
-            {ORDER_STATUS_STEPS.map((step, idx) => (
+            {statusSteps.map((step, idx) => (
               <div key={step} className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full shrink-0 ${idx <= currentStepIndex ? 'bg-kisan' : 'bg-gray-200'}`} />
                 <span className={`text-sm ${idx <= currentStepIndex ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{tStatus(step)}</span>
