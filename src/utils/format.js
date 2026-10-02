@@ -67,8 +67,9 @@ export const DELIVERY_SLOT_HOURS = {
   'शाम 6 - 8 बजे': [18, 20],
 }
 
-// स्लॉट शुरू होने से कम से कम इतने मिनट पहले ऑर्डर चाहिए (तैयारी का समय)
-export const SLOT_LEAD_MINUTES = 60
+// स्लॉट ख़त्म होने से इतने मिनट पहले तक ऑर्डर लिया जाता है (सुरक्षित margin)
+// जैसे 9-11 का स्लॉट 10:00 तक चुना जा सकता है, 10:01 से बंद
+export const SLOT_CUTOFF_MINUTES = 60
 
 // अभी का भारतीय समय: { date: 'YYYY-MM-DD', minutes: दिन के शुरू से बीते मिनट }
 export function istNow(base = new Date()) {
@@ -92,7 +93,7 @@ export function isSlotAvailable(slot, dateStr, now = istNow()) {
   if (dateStr > now.date) return true
   const hours = DELIVERY_SLOT_HOURS[slot]
   if (!hours) return true // अनजान स्लॉट: सर्वर तय करेगा
-  return hours[0] * 60 >= now.minutes + SLOT_LEAD_MINUTES
+  return now.minutes <= hours[1] * 60 - SLOT_CUTOFF_MINUTES
 }
 
 // अभी सबसे पहली उपलब्ध (तारीख, स्लॉट): आज कोई स्लॉट बचा हो तो आज, वरना कल का पहला
