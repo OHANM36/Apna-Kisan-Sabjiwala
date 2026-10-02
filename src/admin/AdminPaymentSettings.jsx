@@ -8,6 +8,19 @@ import { SettingsPageSkeleton } from '../components/Skeleton'
 const MAX_COD_LIMIT = 100000
 const UPI_RE = /^[A-Za-z0-9._-]{2,256}@[A-Za-z0-9.-]{2,64}$/ // डेटाबेस की जाँच जैसी ही
 
+// असली कारण पहचानने के लिए: Supabase की त्रुटि को साफ़ हिंदी संदेश में बदलें (कारण छिपाएँ नहीं)
+function saveErrorText(err) {
+  const m = String(err?.message || '')
+  const code = String(err?.code || '')
+  if (/NOT_ALLOWED/.test(m)) return 'यह बदलाव सिर्फ़ मालिक (owner) कर सकता है।'
+  if (code === '23514' || /check constraint/i.test(m)) return 'यह UPI ID डेटाबेस ने मंज़ूर नहीं किया। सही फ़ॉर्मैट डालें (जैसे dukaan@okaxis)।'
+  if (code === '42501' || /row-level security|permission denied/i.test(m)) return 'अनुमति नहीं है — सिर्फ़ मालिक (owner) खाते से लॉगिन करके सेव करें।'
+  if (code === 'PGRST204' || code === '42703' || /schema cache|shop_upi_id/i.test(m)) return 'shop_upi_id कॉलम नहीं मिला। Supabase SQL Editor में supabase/pay_online_on_delivery.sql चलाएँ, फिर "NOTIFY pgrst, \'reload schema\';" चलाएँ।'
+  if (code === 'PGRST301' || /JWT|expired/i.test(m)) return 'लॉगिन की अवधि खत्म हो गई। दोबारा लॉगिन करें।'
+  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'इंटरनेट की दिक्कत है। जाँचकर दोबारा कोशिश करें।'
+  return 'सेव नहीं हो सका' + (m ? ` (${m}${code ? ' · ' + code : ''})` : '') + '।'
+}
+
 /**
  * भुगतान विकल्प — कैश ऑन डिलीवरी (COD) चालू/बंद + वैकल्पिक अधिकतम ऑर्डर-राशि।
  * बदलाव सिर्फ़ मालिक (owner) कर सकता है: यह नियम डेटाबेस (RLS) में लागू है, सिर्फ़ इस पेज की रोक पर निर्भर नहीं।
@@ -98,12 +111,7 @@ export default function AdminPaymentSettings() {
       setMsg({ ok: true, text: okText })
     } catch (e) {
       console.error(e)
-      setMsg({
-        ok: false,
-        text: /NOT_ALLOWED/.test(String(e?.message))
-          ? 'यह बदलाव सिर्फ़ मालिक (owner) कर सकता है।'
-          : 'सेव नहीं हो सका। इंटरनेट जाँचकर दोबारा कोशिश करें।',
-      })
+      setMsg({ ok: false, text: saveErrorText(e) })
       await load() // स्क्रीन को सर्वर की असली स्थिति से मिलाएँ
     } finally {
       setBusy(false)
@@ -146,14 +154,11 @@ export default function AdminPaymentSettings() {
       if (!data || data.length !== 1) throw new Error('NOT_ALLOWED')
       setSavedUpi(data[0].shop_upi_id || '')
       setUpiInput(data[0].shop_upi_id || '')
-      await reloadSettings()
+      try { await reloadSettings() } catch (re) { console.warn('reloadSettings', re) }
       setMsg({ ok: true, text: v === '' ? '✅ UPI ID हटा दिया गया' : `✅ UPI ID सेव हो गया: ${v}` })
     } catch (err) {
       console.error(err)
-      setMsg({
-        ok: false,
-        text: /NOT_ALLOWED/.test(String(err?.message)) ? 'यह बदलाव सिर्फ़ मालिक (owner) कर सकता है।' : 'सेव नहीं हो सका। इंटरनेट जाँचकर दोबारा कोशिश करें।',
-      })
+      setMsg({ ok: false, text: saveErrorText(err) })
     } finally {
       setBusy(false)
     }
