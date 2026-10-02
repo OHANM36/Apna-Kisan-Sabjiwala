@@ -8,37 +8,34 @@
 // (यह वही key इस्तेमाल हो सकती है जो parse-order फंक्शन में डाली थी,
 //  बस Google Cloud Console में उस key के लिए "Cloud Speech-to-Text API" चालू करना ज़रूरी है)
 
-const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY') ?? ''
+import { clientIp, json, preflight, rateLimit, serviceClient } from '../_shared/http.ts'
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY') ?? ''
+const MAX_AUDIO_BASE64_CHARS = 1_400_000 // ≈ 1 MB ऑडियो (कुछ दस सेकंड की आवाज़ के लिए काफ़ी)
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS })
-  }
+  const pre = preflight(req)
+  if (pre) return pre
 
   try {
     if (!GOOGLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'वॉइस सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें। (GOOGLE_API_KEY missing)' }),
-        { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
-      )
+      return json(req, { error: 'वॉइस सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें।' }, 500)
     }
 
-    const { audio_base64 } = await req.json()
-    if (!audio_base64) {
-      return new Response(JSON.stringify({ error: 'कोई ऑडियो नहीं मिला' }), {
-        status: 400,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      })
+    const body = await req.json().catch(() => ({}))
+    const audio = typeof body?.audio_base64 === 'string' ? body.audio_base64 : ''
+    if (!audio) return json(req, { error: 'कोई ऑडियो नहीं मिला' }, 400)
+    if (audio.length > MAX_AUDIO_BASE64_CHARS || !/^[A-Za-z0-9+/=]+$/.test(audio)) {
+      return json(req, { error: 'ऑडियो बहुत लंबा है। छोटा बोलकर दोबारा कोशिश करें।' }, 400)
     }
 
-    const res = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_API_KEY}`, {
+    if (!(await rateLimit(serviceClient(), 'speech', `ip:${clientIp(req)}`, 15, 10))) {
+      return json(req, { error: 'बहुत ज़्यादा अनुरोध। कृपया कुछ मिनट बाद कोशिश करें।' }, 429)
+    }
+
+    const res = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_API_KEY }, // key URL में नहीं (लॉग में न दिखे)
       body: JSON.stringify({
         config: {
           encoding: 'WEBM_OPUS',
@@ -46,33 +43,22 @@ Deno.serve(async (req) => {
           languageCode: 'hi-IN',
           alternativeLanguageCodes: ['en-IN'],
         },
-        audio: { content: audio_base64 },
+        audio: { content: audio },
       }),
     })
 
     if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`Speech-to-Text सेवा में समस्या: ${errText}`)
+      console.error('Speech-to-Text error', res.status, await res.text())
+      return json(req, { error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }, 502)
     }
 
     const data = await res.json()
     const transcript = data.results?.map((r) => r.alternatives?.[0]?.transcript).join(' ').trim() || ''
 
-    if (!transcript) {
-      return new Response(JSON.stringify({ error: 'आवाज़ साफ़ समझ नहीं आई। कृपया दोबारा बोलें।' }), {
-        status: 200,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      })
-    }
-
-    return new Response(JSON.stringify({ transcript }), {
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    })
+    if (!transcript) return json(req, { error: 'आवाज़ साफ़ समझ नहीं आई। कृपया दोबारा बोलें।' })
+    return json(req, { transcript: transcript.slice(0, 300) })
   } catch (err) {
-    console.error(err)
-    return new Response(JSON.stringify({ error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।', detail: String(err) }), {
-      status: 500,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    })
+    console.error('speech-to-text', err)
+    return json(req, { error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }, 500)
   }
 })

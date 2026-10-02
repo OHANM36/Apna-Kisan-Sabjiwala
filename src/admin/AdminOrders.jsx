@@ -29,7 +29,12 @@ export default function AdminOrders() {
   }
 
   async function updateStatus(orderId, newStatus) {
-    await supabase.from('orders').update({ order_status: newStatus }).eq('id', orderId)
+    const { error } = await supabase.from('orders').update({ order_status: newStatus }).eq('id', orderId)
+    if (error) {
+      alert(/INVALID_TRANSITION/.test(error.message || '')
+        ? 'पूरा/रद्द हुआ ऑर्डर वापस खोलने की अनुमति सिर्फ़ मालिक (owner) को है।'
+        : 'स्थिति बदली नहीं जा सकी। दोबारा कोशिश करें।')
+    }
     loadOrders()
   }
 

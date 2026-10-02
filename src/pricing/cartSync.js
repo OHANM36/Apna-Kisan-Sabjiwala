@@ -4,7 +4,9 @@
 
 import { round2 } from './engine.js'
 
-function tierKeyFromLineId(id) {
+// कार्ट-लाइन का अर्थ: price = प्रति-इकाई कीमत (या tier-बंडल की कीमत), quantity = उसकी संख्या। इसी मॉडल पर सर्वर की place_order चलती है।
+
+export function tierKeyFromLineId(id) {
   const i = String(id).indexOf('::')
   return i === -1 ? null : String(id).slice(i + 2)
 }
@@ -20,7 +22,7 @@ export function syncCartWithCatalog(items, catalog) {
   const removed = []
   for (const line of items || []) {
     const veg = byId.get(line.vegetableId || line.id)
-    if (!veg || veg.is_active === false) {
+    if (!veg || veg.is_active === false || veg.stock_status === 'अनुपलब्ध') {
       removed.push({ id: line.id, name: line.name })
       continue
     }

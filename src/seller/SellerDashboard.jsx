@@ -19,7 +19,7 @@ export default function SellerDashboard() {
 
     const [{ data: vegetables }, { data: items }] = await Promise.all([
       supabase.from('vegetables').select('id, stock_status').eq('seller_id', sellerId),
-      supabase.from('order_items').select('item_total, quantity, order_id, orders(payment_status, created_at)').eq('seller_id', sellerId),
+      supabase.rpc('seller_order_lines'), // सिर्फ़ इस सेलर की अपनी लाइनें (order_items पर सीधी पहुँच बंद है)
     ])
 
     const todayStart = new Date()

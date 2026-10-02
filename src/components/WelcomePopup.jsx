@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { safeGet, safeSet } from '../utils/safeStorage'
 import { supabase } from '../supabaseClient'
 
 const SEEN_KEY = 'aks_welcome_popup_seen_date'
@@ -15,8 +16,8 @@ export default function WelcomePopup() {
     const { data } = await supabase.from('welcome_popup').select('*').eq('id', 1).maybeSingle()
     if (!data || !data.is_active) return
 
-    const today = new Date().toISOString().slice(0, 10)
-    const lastSeen = localStorage.getItem(SEEN_KEY)
+    const today = new Date().toLocaleDateString('en-CA')
+    const lastSeen = safeGet(SEEN_KEY)
     if (lastSeen === today) return // आज पहले ही दिख चुका है
 
     setPopup(data)
@@ -25,7 +26,7 @@ export default function WelcomePopup() {
 
   function handleClose() {
     setVisible(false)
-    localStorage.setItem(SEEN_KEY, new Date().toISOString().slice(0, 10))
+    safeSet(SEEN_KEY, new Date().toLocaleDateString('en-CA'))
   }
 
   if (!visible || !popup) return null

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
@@ -9,8 +9,19 @@ import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee, DELIVERY_TIME_SLOTS } from '../utils/format'
 import { calculateDeliveryFee, minOrderShortfall } from '../pricing/delivery'
+import { tierKeyFromLineId } from '../pricing/cartSync'
+import { safeGet, safeSet, safeRemove, safeJson } from '../utils/safeStorage'
+import { saveMyOrder } from '../utils/myOrders'
+import { friendlyError, withTimeout } from '../utils/errors'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
+
+// ग्राहक की स्थानीय तारीख (toISOString UTC देती है — रात में तारीख एक दिन पीछे दिखती थी)
+function localDate(plusDays) {
+  const d = new Date()
+  d.setDate(d.getDate() + plusDays)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 export default function Checkout() {
   const { items, subtotal, clearCart, syncPrices } = useCart()
@@ -18,13 +29,8 @@ export default function Checkout() {
   const { t } = useLanguage()
   const navigate = useNavigate()
 
-  const savedCustomer = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOMER) || '{}')
-    } catch {
-      return {}
-    }
-  })()
+  const savedCustomer = safeJson(STORAGE_KEY_CUSTOMER, {}) || {}
+  const attempt = useRef({ signature: '', key: '', placed: null })
 
   const [form, setForm] = useState({
     name: savedCustomer.name || '',
@@ -96,29 +102,43 @@ export default function Checkout() {
 
   async function applyCoupon() {
     if (!coupon.trim()) return
-    const { data } = await supabase
-      .from('offers')
-      .select('*')
-      .eq('coupon_code', coupon.trim().toUpperCase())
-      .eq('is_active', true)
-      .maybeSingle()
+    try {
+      // जाँच सर्वर पर होती है (offers टेबल की सारी पंक्तियाँ ब्राउज़र को नहीं भेजी जातीं)
+      const { data, error } = await withTimeout(
+        supabase.rpc('validate_coupon', { p_code: coupon.trim(), p_subtotal: subtotal, p_phone: form.phone.trim() || null })
+      )
+      if (error) throw error
+      if (!data?.ok) {
+        setCouponMsg(data?.error === 'COUPON_MIN_ORDER' && data.min_order_value
+          ? `इस कूपन के लिए न्यूनतम ऑर्डर ${formatRupee(data.min_order_value)} होना चाहिए`
+          : friendlyError(data?.error))
+        setDiscount(0)
+        return
+      }
+      setDiscount(Number(data.discount) || 0)
+      setCouponMsg(`✅ कूपन लागू हुआ! आपको ${formatRupee(data.discount)} की छूट मिली`)
+    } catch (err) {
+      setCouponMsg(friendlyError(err))
+      setDiscount(0)
+    }
+  }
 
-    if (!data) {
-      setCouponMsg('यह कूपन कोड मान्य नहीं है')
-      setDiscount(0)
-      return
-    }
-    if (data.min_order_value && subtotal < data.min_order_value) {
-      setCouponMsg(`इस कूपन के लिए न्यूनतम ऑर्डर ${formatRupee(data.min_order_value)} होना चाहिए`)
-      setDiscount(0)
-      return
-    }
-    const calc = data.discount_type === 'percent' ? (subtotal * data.discount_value) / 100 : data.discount_value
-    setDiscount(Math.min(calc, subtotal))
-    setCouponMsg(`✅ कूपन लागू हुआ! आपको ${formatRupee(Math.min(calc, subtotal))} की छूट मिली`)
+  // कार्ट-लाइन → सर्वर को सिर्फ़ (सब्ज़ी id, मात्रा, tier); कीमत कभी नहीं भेजी जाती
+  function buildOrderItems() {
+    return items.map((i) => {
+      const tierKey = tierKeyFromLineId(i.id)
+      const line = { vegetable_id: i.vegetableId || String(i.id).split('::')[0], quantity: i.quantity }
+      if (tierKey) {
+        const dash = tierKey.indexOf('-')
+        line.tier_qty = Number(tierKey.slice(0, dash))
+        line.tier_unit = tierKey.slice(dash + 1)
+      }
+      return line
+    })
   }
 
   async function handlePayNow() {
+    if (submitting) return // double-click पर दूसरा ऑर्डर नहीं (H4)
     if (!validate()) return
     setPaymentError('')
     if (shortfall > 0) {
@@ -127,133 +147,89 @@ export default function Checkout() {
     }
     setSubmitting(true)
 
-    // ऑर्डर बनाने से ठीक पहले कीमतें ताज़ा प्रकाशित कीमतों से मिलाएं; बदली हों तो ग्राहक को दिखाकर रुकें
-    const fresh = await syncPrices()
-    if (fresh.removed.length || fresh.changed.length) {
-      setPaymentError(fresh.removed.length ? t('cart_items_removed') : t('cart_prices_updated'))
-      setSubmitting(false)
-      return
-    }
-
-    localStorage.setItem(
-      STORAGE_KEY_CUSTOMER,
-      JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        address: form.address,
-        mohalla: form.mohalla,
-        city: form.city,
-        pincode: form.pincode,
-      })
-    )
-
     try {
-      // 1. ग्राहक बनाएं या पहले से मौजूद ग्राहक ढूंढें
-      let customerId = null
-      const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('phone', form.phone.trim())
-        .maybeSingle()
-
-      if (existingCustomer) {
-        customerId = existingCustomer.id
-      } else {
-        const { data: newCustomer, error: custErr } = await supabase
-          .from('customers')
-          .insert({ full_name: form.name, phone: form.phone.trim() })
-          .select('id')
-          .single()
-        if (custErr) throw custErr
-        customerId = newCustomer.id
+      // ऑर्डर बनाने से ठीक पहले कीमतें ताज़ा प्रकाशित कीमतों से मिलाएं; बदली हों तो ग्राहक को दिखाकर रुकें
+      const fresh = await syncPrices()
+      if (fresh.removed.length || fresh.changed.length) {
+        setPaymentError(fresh.removed.length ? t('cart_items_removed') : t('cart_prices_updated'))
+        setSubmitting(false)
+        return
       }
 
-      // 2. ऑर्डर बनाएं (शुरुआत में 'नया ऑर्डर' और भुगतान 'लंबित')
-      const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: customerId,
-          customer_name: form.name,
-          customer_phone: form.phone.trim(),
-          full_address: form.address,
-          mohalla: form.mohalla,
-          city: form.city,
-          pincode: form.pincode,
-          delivery_date: form.deliveryDate,
-          delivery_time_slot: form.deliveryTime,
-          extra_notes: form.notes,
-          latitude: form.latitude,
-          longitude: form.longitude,
-          subtotal,
-          delivery_fee: deliveryFee,
-          discount,
-          coupon_code: coupon ? coupon.toUpperCase() : null,
-          total_amount: total,
-          payment_status: 'लंबित',
-          payment_method: 'ऑनलाइन',
-          order_source: sessionStorage.getItem('aks_order_source') || 'वेबसाइट',
-          order_status: 'नया ऑर्डर',
-        })
-        .select('*')
-        .single()
-      if (orderErr) throw orderErr
+      safeSet(
+        STORAGE_KEY_CUSTOMER,
+        JSON.stringify({ name: form.name, phone: form.phone, address: form.address, mohalla: form.mohalla, city: form.city, pincode: form.pincode })
+      )
 
-      // 3. ऑर्डर की वस्तुएँ (items) सेव करें
-      const orderItems = items.map((i) => ({
-        order_id: order.id,
-        vegetable_id: i.vegetableId || i.id,
-        vegetable_name: i.name,
-        unit: i.unit,
-        price: i.price,
-        quantity: i.quantity,
-        item_total: i.price * i.quantity,
-        seller_id: i.sellerId || null,
-        seller_name: i.sellerName || null,
-      }))
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-      if (itemsErr) throw itemsErr
+      const orderItems = buildOrderItems()
+      const customer = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        mohalla: form.mohalla.trim(),
+        city: form.city.trim(),
+        pincode: form.pincode.trim(),
+        delivery_date: form.deliveryDate,
+        delivery_time_slot: form.deliveryTime,
+        notes: form.notes,
+        lat: form.latitude,
+        lng: form.longitude,
+        order_source: safeGet('aks_order_source', 'session') || 'वेबसाइट',
+      }
 
-      // 4. ऑनलाइन भुगतान शुरू करें (Razorpay - UPI/कार्ड)
-      startOnlinePayment({
-        amount: total,
-        orderNumber: order.order_number,
+      // वही कार्ट+फ़ॉर्म दोबारा सबमिट हो (retry/double-click) तो वही idempotency key → वही ऑर्डर
+      const signature = JSON.stringify([orderItems, customer, coupon.trim().toUpperCase()])
+      if (attempt.current.signature !== signature) {
+        attempt.current = { signature, key: crypto.randomUUID(), placed: null }
+      }
+
+      let placed = attempt.current.placed
+      if (!placed) {
+        const { data, error } = await withTimeout(
+          supabase.rpc('place_order', {
+            p_idem: attempt.current.key,
+            p_customer: customer,
+            p_items: orderItems,
+            p_coupon: coupon.trim() || null,
+          })
+        )
+        if (error) throw error
+        placed = data
+        attempt.current.placed = placed
+        saveMyOrder({ id: placed.order_id, token: placed.access_token, orderNumber: placed.order_number })
+      }
+
+      const finish = () => {
+        clearCart()
+        safeRemove('aks_order_source', 'session')
+        navigate(`/order-confirmation/${placed.order_id}`)
+      }
+
+      if (placed.payment_status === 'सफल') {
+        finish()
+        return
+      }
+
+      // ऑनलाइन भुगतान (Razorpay). "सफल" सिर्फ़ सर्वर की signature-जाँच/webhook से लिखा जाता है।
+      await startOnlinePayment({
+        orderId: placed.order_id,
+        accessToken: placed.access_token,
+        orderNumber: placed.order_number,
         customerName: form.name,
         customerPhone: form.phone,
-        onSuccess: async (paymentResponse) => {
-          await supabase.from('payments').insert({
-            order_id: order.id,
-            gateway: 'razorpay',
-            gateway_payment_id: paymentResponse.razorpay_payment_id,
-            amount: total,
-            status: 'सफल',
-          })
-          await supabase
-            .from('orders')
-            .update({ payment_status: 'सफल', order_status: 'भुगतान सफल' })
-            .eq('id', order.id)
-
+        onVerified: finish,
+        onPending: (message) => {
           clearCart()
-          sessionStorage.removeItem('aks_order_source')
-          navigate(`/order-confirmation/${order.id}`)
+          navigate(`/order-confirmation/${placed.order_id}`, { state: { notice: message } })
         },
-        onFailure: async (message) => {
-          await supabase.from('payments').insert({
-            order_id: order.id,
-            gateway: 'razorpay',
-            amount: total,
-            status: 'असफल',
-          })
-          await supabase.from('orders').update({ payment_status: 'असफल' }).eq('id', order.id)
+        onFailure: (message) => {
           setPaymentError(message + ' कृपया दोबारा भुगतान करने का प्रयास करें।')
-          setSubmitting(false)
-          // दोबारा भुगतान के लिए ऑर्डर आईडी सेव रखें
-          sessionStorage.setItem('aks_retry_order_id', order.id)
+          setSubmitting(false) // वही ऑर्डर दोबारा इस्तेमाल होगा, नया नहीं बनेगा
         },
       })
     } catch (err) {
       console.error(err)
-      const detail = err?.message || err?.error_description || ''
-      setPaymentError('कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' + (detail ? ` (${detail})` : ''))
+      setPaymentError(friendlyError(err)) // तकनीकी error.message ग्राहक को नहीं दिखता
       setSubmitting(false)
     }
   }
@@ -305,7 +281,7 @@ export default function Checkout() {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('checkout_delivery_date')} error={errors.deliveryDate}>
-              <input type="date" className="input-field" min={new Date().toISOString().slice(0, 10)} value={form.deliveryDate} onChange={(e) => updateField('deliveryDate', e.target.value)} />
+              <input type="date" className="input-field" min={localDate(0)} max={localDate(14)} value={form.deliveryDate} onChange={(e) => updateField('deliveryDate', e.target.value)} />
             </Field>
             <Field label={t('checkout_delivery_time')}>
               <select className="input-field" value={form.deliveryTime} onChange={(e) => updateField('deliveryTime', e.target.value)}>

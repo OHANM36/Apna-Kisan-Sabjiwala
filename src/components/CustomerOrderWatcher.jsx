@@ -1,51 +1,44 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { playStatusChangeSound } from '../utils/sounds'
+import { getMyOrders } from '../utils/myOrders'
 
-const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
+const POLL_MS = 30000
+const FINAL = ['डिलीवरी पूरी हुई', 'रद्द']
 
+// ऑर्डर-स्थिति सूचना: अब realtime (जो सबके ऑर्डर-डेटा का रास्ता खोलता था) की जगह get_orders_status RPC की polling।
+// RPC सिर्फ़ उन्हीं ऑर्डर की स्थिति लौटाता है जिनका access_token इस डिवाइस के पास है।
 export default function CustomerOrderWatcher() {
   const [popup, setPopup] = useState(null)
   const navigate = useNavigate()
+  const known = useRef(new Map())
 
   useEffect(() => {
-    let phone = ''
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOMER) || '{}')
-      phone = saved.phone || ''
-    } catch {
-      phone = ''
+    let stopped = false
+
+    async function poll() {
+      if (document.hidden) return
+      const mine = getMyOrders().filter((o) => Date.now() - (o.at || 0) < 3 * 86400000).slice(0, 10)
+      const watch = mine.filter((o) => !FINAL.includes(known.current.get(o.id)?.order_status))
+      if (watch.length === 0) return
+      const { data, error } = await supabase.rpc('get_orders_status', { p_orders: watch.map((o) => ({ id: o.id, token: o.token })) })
+      if (stopped || error || !Array.isArray(data)) return
+      for (const o of data) {
+        const prev = known.current.get(o.id)
+        known.current.set(o.id, o)
+        if (prev && (prev.order_status !== o.order_status || prev.payment_status !== o.payment_status)) {
+          playStatusChangeSound()
+          setPopup({ orderId: o.id, orderNumber: o.order_number, status: o.order_status })
+        }
+      }
     }
 
-    if (!phone) return // अभी तक इस डिवाइस से कोई ऑर्डर नहीं हुआ
-
-    const channel = supabase
-      .channel(`customer-orders-watch-${phone}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_phone=eq.${phone}` },
-        (payload) => {
-          const oldStatus = payload.old?.order_status
-          const newStatus = payload.new?.order_status
-          const oldPayment = payload.old?.payment_status
-          const newPayment = payload.new?.payment_status
-
-          if (oldStatus !== newStatus || oldPayment !== newPayment) {
-            playStatusChangeSound()
-            setPopup({
-              orderId: payload.new.id,
-              orderNumber: payload.new.order_number,
-              status: newStatus,
-              payment: newPayment,
-            })
-          }
-        }
-      )
-      .subscribe()
-
+    poll()
+    const id = setInterval(poll, POLL_MS)
     return () => {
-      supabase.removeChannel(channel)
+      stopped = true
+      clearInterval(id)
     }
   }, [])
 

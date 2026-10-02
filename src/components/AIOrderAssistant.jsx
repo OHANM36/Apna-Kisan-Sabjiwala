@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useCart } from '../context/CartContext'
 import { formatRupee } from '../utils/format'
+import { safeSet } from '../utils/safeStorage'
 
 const GREETING = {
   role: 'ai',
@@ -168,21 +169,25 @@ export default function AIOrderAssistant() {
   function handleConfirmOrder() {
     if (draftItems.length === 0) return
     draftItems.forEach((item) => {
-      // AI से जोड़ा गया आइटम भी tier-pricing की तरह ही "एक बंडल" के रूप में जुड़ता है —
-      // price = इसी मात्रा की पूरी (डेटाबेस से सत्यापित) रकम, unit = वही मात्रा-लेबल
+      // कार्ट-मॉडल = प्रति-इकाई कीमत × मात्रा (वही जो नॉर्मल कार्ट में है), इसलिए cartSync कीमत "सुधारकर"
+      // 5 किलो को 1 इकाई की कीमत पर नहीं गिराता (पहले ₹150 का कार्ट खुलते ही ₹30 हो जाता था)।
+      // tier मेल खाए तो वही id-फ़ॉर्मैट जो VegetableCard इस्तेमाल करता है: <vegId>::<qty>-<unit>
+      const isTier = item.tier_qty != null && item.tier_unit
       addToCart(
         {
-          id: `ai-${item.vegetable_id}-${item.rate_label}`,
+          id: isTier ? `${item.vegetable_id}::${item.tier_qty}-${item.tier_unit}` : item.vegetable_id,
           vegetableId: item.vegetable_id,
+          sellerId: item.seller_id || null,
+          sellerName: item.seller_name || null,
           name: item.name,
-          price: item.item_total,
-          unit: item.rate_label,
+          price: item.unit_price,
+          unit: item.unit,
           emoji: '🥬',
         },
-        1
+        item.base_quantity
       )
     })
-    sessionStorage.setItem('aks_order_source', 'AI सहायक')
+    safeSet('aks_order_source', 'AI सहायक', 'session')
     setOpen(false)
     navigate('/cart')
   }

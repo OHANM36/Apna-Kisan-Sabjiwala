@@ -11,7 +11,7 @@ const TABS = [
 ]
 
 export default function DeliveryOrders() {
-  const { deliveryBoy } = useDeliveryAuth()
+  const { deliveryBoy, token, logout } = useDeliveryAuth()
   const [tab, setTab] = useState('available')
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -20,51 +20,40 @@ export default function DeliveryOrders() {
   const [confirmOrder, setConfirmOrder] = useState(null)
   const [confirmPin, setConfirmPin] = useState('')
   const [confirmError, setConfirmError] = useState('')
+  const [notice, setNotice] = useState('')
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true)
-    let query = supabase.from('orders').select('*, order_items(*)').order('created_at', { ascending: false })
-
-    if (tab === 'available') {
-      query = query.in('order_status', ['स्वीकार किया गया', 'सामान तैयार हो रहा है']).is('delivery_boy_id', null)
-    } else if (tab === 'mine') {
-      query = query.eq('delivery_boy_id', deliveryBoy.id).eq('order_status', 'डिलीवरी के लिए निकल गया')
-    } else {
-      query = query.eq('delivery_boy_id', deliveryBoy.id).eq('order_status', 'डिलीवरी पूरी हुई').limit(20)
+  const loadOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    const { data, error } = await supabase.rpc('delivery_orders', { p_token: token, p_tab: tab })
+    if (error && /UNAUTHORIZED/.test(error.message || '')) {
+      logout() // session खत्म/निष्क्रिय → लॉगिन पर वापस
+      return
     }
-
-    const { data } = await query
-    setOrders(data || [])
+    setOrders(Array.isArray(data) ? data : [])
     setLoading(false)
-  }, [tab, deliveryBoy.id])
+  }, [tab, token])
 
   useEffect(() => {
     loadOrders()
   }, [loadOrders])
 
-  // नए/बदले हुए ऑर्डर पर सूची अपने आप अपडेट हो जाए
+  // realtime की जगह हर 20 सेकंड polling (टैब दिख रहा हो तभी) — realtime सबके ऑर्डर-डेटा का रास्ता था
   useEffect(() => {
-    const channel = supabase
-      .channel('delivery-orders-watch')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadOrders())
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+    const id = setInterval(() => {
+      if (!document.hidden) loadOrders(true)
+    }, 20000)
+    return () => clearInterval(id)
   }, [loadOrders])
 
   async function claimOrder(order) {
     setBusyId(order.id)
-    await supabase
-      .from('orders')
-      .update({ delivery_boy_id: deliveryBoy.id, order_status: 'डिलीवरी के लिए निकल गया' })
-      .eq('id', order.id)
+    const { data, error } = await supabase.rpc('delivery_claim_order', { p_token: token, p_order_id: order.id })
     setBusyId(null)
-    loadOrders()
-  }
-
-  async function markDelivered(order) {
-    setBusyId(order.id)
-    await supabase.from('orders').update({ order_status: 'डिलीवरी पूरी हुई' }).eq('id', order.id)
-    setBusyId(null)
+    if (error || !data?.ok) {
+      setNotice(data?.error === 'TAKEN' ? 'यह ऑर्डर किसी और डिलीवरी बॉय ने ले लिया है।' : 'ऑर्डर नहीं मिल सका। दोबारा कोशिश करें।')
+    } else {
+      setNotice('')
+    }
     loadOrders()
   }
 
@@ -83,13 +72,20 @@ export default function DeliveryOrders() {
   async function submitConfirmPin(e) {
     e.preventDefault()
     if (!confirmOrder) return
-    if (confirmPin.trim() !== (confirmOrder.delivery_pin || '')) {
-      setConfirmError('गलत पिन! ग्राहक से सही 4 अंकों का पिन पूछें।')
+    setBusyId(confirmOrder.id)
+    // PIN की जाँच सर्वर पर होती है (5 गलत कोशिश पर लॉक); PIN इस डिवाइस को कभी नहीं भेजा जाता
+    const { data, error } = await supabase.rpc('delivery_confirm', { p_token: token, p_order_id: confirmOrder.id, p_pin: confirmPin.trim() })
+    setBusyId(null)
+    if (error || !data?.ok) {
+      setConfirmError(
+        data?.error === 'LOCKED' ? 'बहुत गलत कोशिशें। एडमिन से संपर्क करें।'
+        : data?.error === 'WRONG_PIN' ? 'गलत पिन! ग्राहक से सही 4 अंकों का पिन पूछें।'
+        : 'कन्फर्म नहीं हो सका। दोबारा कोशिश करें।'
+      )
       return
     }
-    const order = confirmOrder
     closeConfirm()
-    await markDelivered(order)
+    loadOrders()
   }
 
   return (
@@ -110,6 +106,8 @@ export default function DeliveryOrders() {
           </button>
         ))}
       </div>
+
+      {notice && <p className="bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3 mb-3">{notice}</p>}
 
       {loading ? (
         <Loading />

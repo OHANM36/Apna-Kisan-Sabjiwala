@@ -14,7 +14,7 @@ export function LanguageProvider({ children }) {
   })
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, language)
+    try { localStorage.setItem(STORAGE_KEY, language) } catch { /* private mode */ }
   }, [language])
 
   function setLanguage(lang) {

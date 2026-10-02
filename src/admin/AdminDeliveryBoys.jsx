@@ -30,7 +30,7 @@ export default function AdminDeliveryBoys() {
 
   function openEdit(boy) {
     setError('')
-    setEditing({ ...boy })
+    setEditing({ ...boy, pin: '' }) // मौजूदा PIN कभी वापस नहीं दिखता (सिर्फ़ hash सेव है); खाली छोड़ें तो PIN वही रहेगा
   }
 
   async function saveBoy(e) {
@@ -38,8 +38,12 @@ export default function AdminDeliveryBoys() {
     setError('')
 
     const pin = editing.pin.trim()
-    if (!/^\d{4}$/.test(pin)) {
+    if (pin && !/^\d{4}$/.test(pin)) {
       setError('पिन ठीक 4 अंकों का होना चाहिए (जैसे: 1234)')
+      return
+    }
+    if (!editing.id && !pin) {
+      setError('नए डिलीवरी बॉय के लिए 4 अंकों का पिन ज़रूरी है')
       return
     }
     if (!editing.full_name.trim()) {
@@ -48,24 +52,21 @@ export default function AdminDeliveryBoys() {
     }
 
     setSaving(true)
-    const payload = {
-      full_name: editing.full_name.trim(),
-      phone: editing.phone?.trim() || null,
-      pin,
-      is_active: editing.is_active,
-    }
-
-    const { error: dbError } = editing.id
-      ? await supabase.from('delivery_boys').update(payload).eq('id', editing.id)
-      : await supabase.from('delivery_boys').insert(payload)
-
+    const { error: dbError } = await supabase.rpc('admin_save_delivery_boy', {
+      p_id: editing.id || null,
+      p_full_name: editing.full_name.trim(),
+      p_phone: editing.phone?.trim() || null,
+      p_pin: pin || null,
+      p_is_active: editing.is_active,
+    })
     setSaving(false)
 
     if (dbError) {
+      const m = dbError.message || ''
       setError(
-        dbError.message.includes('idx_delivery_boys_active_pin')
-          ? 'यह पिन पहले से किसी सक्रिय डिलीवरी बॉय का है। कृपया अलग पिन चुनें।'
-          : `सेव नहीं हुआ: ${dbError.message}`
+        m.includes('PIN_IN_USE') ? 'यह पिन पहले से किसी सक्रिय डिलीवरी बॉय का है। कृपया अलग पिन चुनें।'
+        : m.includes('FORBIDDEN') ? 'आपके पास यह करने की अनुमति नहीं है।'
+        : 'सेव नहीं हुआ। कृपया दोबारा प्रयास करें।'
       )
       return
     }
@@ -75,7 +76,10 @@ export default function AdminDeliveryBoys() {
   }
 
   async function toggleActive(boy) {
-    await supabase.from('delivery_boys').update({ is_active: !boy.is_active }).eq('id', boy.id)
+    // RPC से, ताकि निष्क्रिय करते ही उसके चालू login-session भी खत्म हो जाएँ
+    await supabase.rpc('admin_save_delivery_boy', {
+      p_id: boy.id, p_full_name: boy.full_name, p_phone: boy.phone || null, p_pin: null, p_is_active: !boy.is_active,
+    })
     loadBoys()
   }
 
@@ -105,7 +109,7 @@ export default function AdminDeliveryBoys() {
               <div>
                 <p className="font-bold text-gray-800 text-sm">{b.full_name}</p>
                 {b.phone && <p className="text-xs text-gray-500">{b.phone}</p>}
-                <p className="text-xs text-gray-400 mt-0.5">पिन: <span className="font-mono font-bold text-gray-600">{b.pin}</span></p>
+                <p className="text-xs text-gray-400 mt-0.5">पिन: <span className="font-mono font-bold text-gray-600">••••</span> (सुरक्षा के लिए छिपा; बदलने के लिए संपादित करें)</p>
                 <p className="text-xs text-gray-400">जुड़े: {formatDate(b.created_at)}</p>
               </div>
               <span className={`text-xs font-bold px-2 py-1 rounded-full ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
@@ -152,9 +156,9 @@ export default function AdminDeliveryBoys() {
                   onChange={(e) => setEditing({ ...editing, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 />
               </Field>
-              <Field label="4 अंकों का पिन">
+              <Field label={editing.id ? 'नया 4 अंकों का पिन (खाली = नहीं बदलेगा)' : '4 अंकों का पिन'}>
                 <input
-                  required
+                  required={!editing.id}
                   inputMode="numeric"
                   maxLength={4}
                   className="input-field font-mono tracking-widest"

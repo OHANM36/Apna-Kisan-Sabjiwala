@@ -15,11 +15,8 @@ export default function SellerOrders() {
 
   async function loadOrders() {
     setLoading(true)
-    const { data } = await supabase
-      .from('order_items')
-      .select('*, orders(order_number, customer_name, customer_phone, full_address, mohalla, city, pincode, delivery_date, delivery_time_slot, payment_status, order_status, created_at)')
-      .eq('seller_id', session.user.id)
-      .order('created_at', { referencedTable: 'orders', ascending: false })
+    // सिर्फ़ इस सेलर की अपनी लाइनें + ज़रूरी कॉलम (delivery PIN/GPS नहीं) — security-definer RPC से
+    const { data } = await supabase.rpc('seller_order_lines')
 
     // ऑर्डर के हिसाब से items को समूहित करें
     const map = new Map()

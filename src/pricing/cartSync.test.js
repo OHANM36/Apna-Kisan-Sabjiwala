@@ -41,3 +41,18 @@ test('removed/inactive vegetables and vanished tiers leave the cart with a notic
 test('empty/undefined inputs are safe', () => {
   assert.deepEqual(syncCartWithCatalog(undefined, undefined), { items: [], changed: [], removed: [] })
 })
+
+test('unavailable (out of stock) lines are removed from the cart', () => {
+  const cat = [{ id: 'v9', price: 20, price_tiers: null, is_active: true, stock_status: 'अनुपलब्ध' }]
+  const r = syncCartWithCatalog([{ id: 'v9', vegetableId: 'v9', name: 'x', price: 20, quantity: 1 }], cat)
+  assert.equal(r.items.length, 0)
+  assert.equal(r.removed.length, 1)
+})
+
+test('per-unit model: a fractional-quantity line keeps unit price (AI order 5 kg potato is 5 x 30, never 1 x 150)', () => {
+  const cat = [{ id: 'p', price: 30, price_tiers: null, is_active: true }]
+  const line = { id: 'p', vegetableId: 'p', name: 'आलू', price: 30, unit: 'किलो', quantity: 5 }
+  const r = syncCartWithCatalog([line], cat)
+  assert.equal(r.changed.length, 0)
+  assert.equal(r.items[0].price * r.items[0].quantity, 150)
+})

@@ -34,20 +34,28 @@ create table if not exists sellers (
   created_at timestamptz not null default now()
 );
 
--- सुरक्षा: seller खुद अपनी is_approved value नहीं बदल सकता, सिर्फ एडमिन बदल सकता है
-create or replace function prevent_self_approve()
+-- सुरक्षा: seller खुद न approve हो सकता है (insert पर भी), न खुद को दोबारा active कर सकता है; सिर्फ एडमिन बदल सकता है
+-- (auth.uid() IS NULL = service_role / SQL Editor, वहाँ रोक नहीं)
+create or replace function sellers_guard()
 returns trigger as $$
 begin
-  if not is_admin() then
-    new.is_approved := old.is_approved;
+  if auth.uid() is not null and not is_admin() then
+    if tg_op = 'INSERT' then
+      new.is_approved := false;
+      new.is_active := true;
+    else
+      new.is_approved := old.is_approved;
+      new.is_active := old.is_active;
+    end if;
   end if;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists trg_prevent_self_approve on sellers;
-create trigger trg_prevent_self_approve before update on sellers
-  for each row execute function prevent_self_approve();
+drop trigger if exists trg_sellers_guard on sellers;
+create trigger trg_sellers_guard before insert or update on sellers
+  for each row execute function sellers_guard();
 
 -- =========================================================
 -- 1ख. डिलीवरी बॉय (delivery_boys) - PIN से लॉगिन (Supabase Auth नहीं)
@@ -57,14 +65,11 @@ create table if not exists delivery_boys (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,
   phone text,
-  pin text not null,               -- 4 अंकों का पिन (जैसे: 1234)
+  pin_hash text,                   -- 4 अंकों के पिन का bcrypt hash (plaintext PIN कहीं नहीं रखा जाता)
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
-
--- एक समय पर दो सक्रिय डिलीवरी बॉय का एक जैसा पिन नहीं हो सकता
-create unique index if not exists idx_delivery_boys_active_pin
-  on delivery_boys(pin) where is_active = true;
+-- PIN सेट/बदलना: एडमिन पैनल → admin_save_delivery_boy() RPC (security_hardening.sql)
 
 -- =========================================================
 -- 2. सब्ज़ियों की श्रेणियाँ (categories)
@@ -204,6 +209,8 @@ create table if not exists orders (
   longitude numeric(10,7),
   delivery_boy_id uuid references delivery_boys(id) on delete set null,  -- कौन सा डिलीवरी बॉय डिलीवर कर रहा है
   delivery_pin text,  -- ग्राहक द्वारा डिलीवरी बॉय को बताया जाने वाला 4 अंकों का पिन (डिलीवरी कन्फर्म करने के लिए)
+  delivery_pin_attempts int not null default 0,   -- गलत PIN की कोशिशें (5 के बाद लॉक)
+  access_token uuid not null default gen_random_uuid(),  -- ग्राहक की पहुँच का गोपनीय token (सिर्फ ऑर्डर बनाने वाले को मिलता है)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -299,11 +306,11 @@ create or replace function generate_delivery_pin()
 returns trigger as $$
 begin
   if new.delivery_pin is null then
-    new.delivery_pin := lpad(floor(random() * 10000)::text, 4, '0');
+    new.delivery_pin := lpad((('x' || encode(gen_random_bytes(4), 'hex'))::bit(32)::bigint % 10000)::text, 4, '0');
   end if;
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public, extensions;
 
 drop trigger if exists trg_delivery_pin on orders;
 create trigger trg_delivery_pin before insert on orders
@@ -332,7 +339,13 @@ returns boolean as $$
   select exists (
     select 1 from admin_users where id = auth.uid()
   );
-$$ language sql security definer stable;
+$$ language sql security definer stable set search_path = public;
+
+-- मालिक = role 'admin' (staff नहीं). pricing_engine.sql में भी यही परिभाषा है।
+create or replace function is_owner()
+returns boolean as $$
+  select exists (select 1 from admin_users where id = auth.uid() and role = 'admin');
+$$ language sql security definer stable set search_path = public;
 
 -- ---------- categories: सभी पढ़ सकते हैं, केवल एडमिन बदल सकते हैं ----------
 create policy "categories_public_read" on categories for select using (true);
@@ -350,8 +363,16 @@ create policy "vegetables_public_read" on vegetables for select using (
 create policy "vegetables_admin_write" on vegetables for insert with check (is_admin());
 create policy "vegetables_admin_update" on vegetables for update using (is_admin());
 create policy "vegetables_admin_delete" on vegetables for delete using (is_admin());
-create policy "vegetables_seller_write" on vegetables for insert with check (seller_id = auth.uid());
-create policy "vegetables_seller_update" on vegetables for update using (seller_id = auth.uid());
+create policy "vegetables_seller_write" on vegetables for insert with check (
+  seller_id = auth.uid()
+  and exists (select 1 from sellers s where s.id = auth.uid() and s.is_approved and s.is_active)
+);
+create policy "vegetables_seller_update" on vegetables for update
+  using (seller_id = auth.uid())
+  with check (
+    seller_id = auth.uid()
+    and exists (select 1 from sellers s where s.id = auth.uid() and s.is_approved and s.is_active)
+  );
 create policy "vegetables_seller_delete" on vegetables for delete using (seller_id = auth.uid());
 
 -- ---------- offers: सक्रिय ऑफर सभी देख सकते हैं ----------
@@ -368,58 +389,45 @@ create policy "delivery_settings_admin_update" on delivery_settings for update u
 create policy "welcome_popup_public_read" on welcome_popup for select using (true);
 create policy "welcome_popup_admin_update" on welcome_popup for update using (is_admin());
 
--- ---------- customers: कोई भी नया ग्राहक बना सकता है (ऑर्डर के समय), एडमिन सब देख सकता है ----------
-create policy "customers_public_insert" on customers for insert with check (true);
-create policy "customers_public_read_own" on customers for select using (true);
+-- ---------- customers / addresses / orders / order_items / payments ----------
+-- सुरक्षा: इन टेबल पर सीधी public पहुँच नहीं है। anon key ब्राउज़र में सबको दिखती है,
+-- इसलिए ग्राहक/डिलीवरी/सेलर की सारी पहुँच security-definer RPC से होती है
+-- (place_order, get_order_public, customer_orders, delivery_*, seller_order_lines — security_hardening.sql देखें)।
+create policy "customers_admin_read"   on customers for select using (is_admin());
 create policy "customers_admin_update" on customers for update using (is_admin());
 create policy "customers_admin_delete" on customers for delete using (is_admin());
 
--- ---------- customer_addresses ----------
-create policy "addresses_public_insert" on customer_addresses for insert with check (true);
-create policy "addresses_public_read" on customer_addresses for select using (true);
+create policy "addresses_admin_read"   on customer_addresses for select using (is_admin());
 create policy "addresses_admin_update" on customer_addresses for update using (is_admin());
 create policy "addresses_admin_delete" on customer_addresses for delete using (is_admin());
 
--- ---------- orders: कोई भी ऑर्डर बना सकता है, पढ़ सकता है; केवल एडमिन स्टेटस बदले ----------
-create policy "orders_public_insert" on orders for insert with check (true);
-create policy "orders_public_read" on orders for select using (true);
+create policy "orders_admin_read"   on orders for select using (is_admin());
 create policy "orders_admin_update" on orders for update using (is_admin());
-create policy "orders_public_update_payment" on orders for update using (true)
-  with check (order_status in ('नया ऑर्डर','भुगतान सफल'));
 create policy "orders_admin_delete" on orders for delete using (is_admin());
--- डिलीवरी बॉय (PIN लॉगिन) को इन स्टेटस के बीच ऑर्डर आगे बढ़ाने की अनुमति
-create policy "orders_delivery_update" on orders for update using (
-  order_status in ('स्वीकार किया गया','सामान तैयार हो रहा है','डिलीवरी के लिए निकल गया')
-) with check (
-  order_status in ('सामान तैयार हो रहा है','डिलीवरी के लिए निकल गया','डिलीवरी पूरी हुई')
-);
 
--- ---------- order_items ----------
-create policy "order_items_public_insert" on order_items for insert with check (true);
-create policy "order_items_public_read" on order_items for select using (true);
+create policy "order_items_admin_read"   on order_items for select using (is_admin());
 create policy "order_items_admin_delete" on order_items for delete using (is_admin());
 
--- ---------- payments ----------
-create policy "payments_public_insert" on payments for insert with check (true);
-create policy "payments_public_read" on payments for select using (true);
-create policy "payments_public_update" on payments for update using (true);
+create policy "payments_admin_read"   on payments for select using (is_admin());
 create policy "payments_admin_delete" on payments for delete using (is_admin());
+-- payments में लिखना सिर्फ़ Edge Functions (service_role) / mark_order_paid() से
 
 -- ---------- admin_users: केवल एडमिन खुद को पढ़ सके ----------
 create policy "admin_users_self_read" on admin_users for select using (auth.uid() = id or is_admin());
-create policy "admin_users_admin_write" on admin_users for insert with check (is_admin());
-create policy "admin_users_admin_update" on admin_users for update using (is_admin());
+create policy "admin_users_owner_insert" on admin_users for insert with check (is_owner());
+create policy "admin_users_owner_update" on admin_users for update using (is_owner()) with check (is_owner());
 
 -- ---------- sellers: विक्रेता खुद अपना प्रोफाइल देख/अपडेट कर सके, एडमिन सबको देख/approve कर सके ----------
 create policy "sellers_self_read" on sellers for select using (
   auth.uid() = id or is_admin() or (is_approved = true and is_active = true)
 );
 create policy "sellers_self_signup" on sellers for insert with check (auth.uid() = id);
-create policy "sellers_self_update" on sellers for update using (auth.uid() = id or is_admin());
+create policy "sellers_self_update" on sellers for update
+  using (auth.uid() = id or is_admin()) with check (auth.uid() = id or is_admin());
 create policy "sellers_admin_delete" on sellers for delete using (is_admin());
 
--- ---------- delivery_boys: पिन जांचने के लिए पढ़ना सबके लिए, बाकी सिर्फ एडमिन ----------
-create policy "delivery_boys_public_read" on delivery_boys for select using (true);
+-- ---------- delivery_boys: सिर्फ एडमिन (लॉगिन delivery_login() RPC से, PIN hash में) ----------
+create policy "delivery_boys_admin_read" on delivery_boys for select using (is_admin());
 create policy "delivery_boys_admin_write" on delivery_boys for insert with check (is_admin());
 create policy "delivery_boys_admin_update" on delivery_boys for update using (is_admin());
 create policy "delivery_boys_admin_delete" on delivery_boys for delete using (is_admin());
@@ -462,6 +470,12 @@ on conflict do nothing;
 --
 -- insert into admin_users (id, full_name, phone)
 -- values ('YAHAN-AUTH-USER-KI-UUID-DAALEIN', 'Admin Name', '8839351985');
+-- =========================================================
+
+-- =========================================================
+-- ⚠️ नीचे के MIGRATION टिप्पणी-ब्लॉक पुराने (असुरक्षित) संस्करण के हैं और सिर्फ़ इतिहास के लिए हैं।
+--    इन्हें चलाने की ज़रूरत नहीं — नए DB पर ऊपर की schema.sql काफ़ी है, और पुराने DB पर
+--    supabase/security_hardening.sql (सबसे आख़िर में) सारी policies सुरक्षित रूप में दोबारा लगा देती है।
 -- =========================================================
 
 -- =========================================================

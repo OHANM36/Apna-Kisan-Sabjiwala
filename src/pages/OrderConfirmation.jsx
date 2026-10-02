@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useSettings } from '../context/SettingsContext'
 import { buildWhatsAppOrderLink } from '../utils/whatsapp'
 import { formatRupee, formatDate, ORDER_STATUS_STEPS } from '../utils/format'
 import Header from '../components/Header'
 import Loading from '../components/Loading'
+import { getOrderToken, saveMyOrder } from '../utils/myOrders'
+import { startOnlinePayment } from '../utils/payment'
+import { friendlyError, withTimeout } from '../utils/errors'
 import { useLanguage } from '../context/LanguageContext'
 
 export default function OrderConfirmation() {
@@ -15,22 +18,77 @@ export default function OrderConfirmation() {
   const [order, setOrder] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [paying, setPaying] = useState(false)
+  const location = useLocation()
+  const [search] = useSearchParams()
+  const notice = location.state?.notice || ''
+
+  // ऑर्डर देखने के लिए गोपनीय access_token चाहिए: इसी डिवाइस पर सेव या लिंक में ?t=
+  const token = search.get('t') || getOrderToken(orderId)
+
+  async function fetchOrder(silent = false) {
+    if (!silent) setLoading(true)
+    if (!token) {
+      setOrder(null)
+      setLoading(false)
+      return null
+    }
+    try {
+      const { data, error: err } = await withTimeout(supabase.rpc('get_order_public', { p_order_id: orderId, p_token: token }))
+      if (err) throw err
+      setOrder(data?.order || null)
+      setItems(data?.items || [])
+      if (data?.order && search.get('t')) saveMyOrder({ id: orderId, token, orderNumber: data.order.order_number })
+      return data?.order || null
+    } catch (e) {
+      if (!silent) setError(friendlyError(e))
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    loadOrder()
+    fetchOrder()
   }, [orderId])
 
-  async function loadOrder() {
-    setLoading(true)
-    const { data: orderData } = await supabase.from('orders').select('*').eq('id', orderId).single()
-    const { data: itemsData } = await supabase.from('order_items').select('*').eq('order_id', orderId)
-    setOrder(orderData)
-    setItems(itemsData || [])
-    setLoading(false)
+  // भुगतान की पुष्टि बाकी हो (webhook आने तक) तो कुछ देर हर 5 सेकंड में स्थिति जाँचें
+  useEffect(() => {
+    if (!order || order.payment_status === 'सफल' || order.order_status === 'रद्द') return
+    let tries = 0
+    const id = setInterval(async () => {
+      tries += 1
+      const o = await fetchOrder(true)
+      if (tries >= 24 || o?.payment_status === 'सफल') clearInterval(id)
+    }, 5000)
+    return () => clearInterval(id)
+  }, [order?.payment_status, order?.order_status, orderId])
+
+  function retryPayment() {
+    setPaying(true)
+    setError('')
+    startOnlinePayment({
+      orderId: order.id,
+      accessToken: token,
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerPhone: order.customer_phone,
+      onVerified: async () => { await fetchOrder(true); setPaying(false) },
+      onPending: (m) => { setError(m); setPaying(false) },
+      onFailure: (m) => { setError(m); setPaying(false) },
+    })
   }
 
   if (loading) return <div className="min-h-screen"><Header /><Loading /></div>
-  if (!order) return <div className="min-h-screen"><Header /><p className="text-center py-16">{t('order_not_found')}</p></div>
+  if (!order) return (
+    <div className="min-h-screen"><Header />
+      <div className="text-center py-16 px-6">
+        <p>{error || t('order_not_found')}</p>
+        <Link to="/orders" className="btn-outline inline-block mt-4 px-5">मेरे ऑर्डर देखें</Link>
+      </div>
+    </div>
+  )
 
   const currentStepIndex = ORDER_STATUS_STEPS.indexOf(order.order_status)
   const whatsappLink = buildWhatsAppOrderLink({ order, items, businessWhatsapp: settings.business_whatsapp })
@@ -40,10 +98,22 @@ export default function OrderConfirmation() {
       <Header />
       <div className="px-4 py-6 animate-fade-slide-in">
         <div className="flex flex-col items-center text-center mb-6">
-          <span className="text-6xl mb-2">✅</span>
-          <h2 className="font-extrabold text-xl text-gray-800">{t('order_success')}</h2>
+          <span className="text-6xl mb-2">{order.payment_status === 'सफल' ? '✅' : '⏳'}</span>
+          <h2 className="font-extrabold text-xl text-gray-800">{order.payment_status === 'सफल' ? t('order_success') : 'ऑर्डर बन गया — भुगतान बाकी'}</h2>
           <p className="text-gray-500 text-sm mt-1">{t('order_number')}: <span className="font-bold text-kisan">{order.order_number}</span></p>
         </div>
+
+        {(notice || error) && (
+          <div className="bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{notice || error}</div>
+        )}
+        {order.payment_status !== 'सफल' && order.order_status !== 'रद्द' && (
+          <div className="card p-4 mb-4 border-2 border-orange-300">
+            <p className="text-sm font-bold text-orange-600 mb-2">भुगतान बाकी है</p>
+            <button onClick={retryPayment} disabled={paying} className="btn-primary w-full">
+              {paying ? 'प्रोसेस हो रहा है...' : `${formatRupee(order.total_amount)} अभी भुगतान करें`}
+            </button>
+          </div>
+        )}
 
         <div className="card p-4 mb-4">
           <h3 className="font-bold text-gray-700 text-sm mb-3">{t('order_status_title')}</h3>
