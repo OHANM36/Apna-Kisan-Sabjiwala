@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, statusStepsFor, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
 import Loading from '../components/Loading'
 import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
+import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
 
 const KINDS = ['सभी', 'AI सहायक', 'COD']
 
@@ -16,6 +17,8 @@ export default function AdminOrders() {
   const [kind, setKind] = useState('सभी')
   const initialStage = ORDER_STAGES.some((st) => st.key === params.get('stage')) ? params.get('stage') : 'all'
   const [stage, setStage] = useState(initialStage)
+  const [waOrder, setWaOrder] = useState(null) // WhatsApp संदेश-पैनल जिस ऑर्डर का खुला है
+  const [waText, setWaText] = useState('')
   const [limit, setLimit] = useState(200)
   const [collapsed, setCollapsed] = useState({ done: true, cancelled: true })
   const [expanded, setExpanded] = useState(null)
@@ -44,6 +47,12 @@ export default function AdminOrders() {
         : 'स्थिति बदली नहीं जा सकी। दोबारा कोशिश करें।')
     }
     loadOrders()
+  }
+
+  function openWa(o) {
+    if (waOrder === o.id) { setWaOrder(null); return }
+    setWaText(buildCustomerUpdateText(o, window.location.origin))
+    setWaOrder(o.id)
   }
 
   const byKind = kind === 'AI सहायक'
@@ -188,6 +197,44 @@ export default function AdminOrders() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="mt-3">
+              <button
+                onClick={() => openWa(o)}
+                disabled={customerWhatsAppNumber(o.customer_phone).length < 10}
+                className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-40"
+              >
+                <span>📲</span> ग्राहक को WhatsApp अपडेट भेजें
+              </button>
+              {waOrder === o.id && (
+                <div className="mt-2 border border-green-200 bg-green-50 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-gray-600 mb-1">संदेश (भेजने से पहले बदल सकते हैं) — {o.customer_name} • {o.customer_phone}</p>
+                  <textarea
+                    value={waText}
+                    onChange={(e) => setWaText(e.target.value)}
+                    rows={8}
+                    className="w-full text-sm border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-kisan"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => setWaText(buildCustomerUpdateText(o, window.location.origin))}
+                      className="flex-1 text-xs font-bold text-gray-600 border border-gray-300 rounded-lg py-2"
+                    >
+                      स्थिति के हिसाब से दोबारा बनाएँ
+                    </button>
+                    <a
+                      href={buildCustomerWhatsAppLink(o.customer_phone, waText)}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setWaOrder(null)}
+                      className="flex-1 text-center text-xs font-bold bg-[#25D366] text-white rounded-lg py-2"
+                    >
+                      WhatsApp खोलें
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
