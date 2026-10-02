@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { playStatusChangeSound } from '../utils/soundsLazy'
 import { getMyOrders } from '../utils/myOrders'
+import { useLanguage } from '../context/LanguageContext'
 
 const POLL_MS = 30000
 const FINAL = ['डिलीवरी पूरी हुई', 'रद्द']
@@ -10,6 +11,7 @@ const FINAL = ['डिलीवरी पूरी हुई', 'रद्द']
 // ऑर्डर-स्थिति सूचना: अब realtime (जो सबके ऑर्डर-डेटा का रास्ता खोलता था) की जगह get_orders_status RPC की polling।
 // RPC सिर्फ़ उन्हीं ऑर्डर की स्थिति लौटाता है जिनका access_token इस डिवाइस के पास है।
 export default function CustomerOrderWatcher() {
+  const { t, tStatus } = useLanguage()
   const [popup, setPopup] = useState(null)
   const navigate = useNavigate()
   const known = useRef(new Map())
@@ -55,19 +57,19 @@ export default function CustomerOrderWatcher() {
         <div className="flex items-start gap-3">
           <span className="text-2xl">📦</span>
           <div className="flex-1">
-            <p className="font-display font-bold text-kisan-ink text-sm">आपके ऑर्डर की स्थिति बदली</p>
+            <p className="font-display font-bold text-kisan-ink text-sm">{t('watcher_title')}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {popup.orderNumber} — <span className="font-semibold text-kisan">{popup.status}</span>
+              {popup.orderNumber} — <span className="font-semibold text-kisan">{tStatus(popup.status)}</span>
             </p>
           </div>
           <button onClick={() => setPopup(null)} className="text-gray-400 text-lg leading-none">×</button>
         </div>
         <div className="flex gap-2 mt-3">
           <button onClick={() => setPopup(null)} className="flex-1 text-xs font-bold text-gray-500 py-2">
-            बंद करें
+            {t('watcher_close')}
           </button>
           <button onClick={handleView} className="flex-1 text-xs font-bold bg-kisan text-white py-2 rounded-xl">
-            ऑर्डर देखें
+            {t('watcher_view')}
           </button>
         </div>
       </div>

@@ -18,19 +18,22 @@ Deno.serve(async (req) => {
   if (pre) return pre
 
   try {
+    const body = await req.json().catch(() => ({}))
+    const lang = body?.language === 'en' ? 'en' : 'hi'
+    const L = (hi, en) => (lang === 'en' ? en : hi)
+
     if (!GOOGLE_API_KEY) {
-      return json(req, { error: 'वॉइस सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें।' }, 500)
+      return json(req, { error: L('वॉइस सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें।', 'The voice service is not set up yet. Please contact the admin.') }, 500)
     }
 
-    const body = await req.json().catch(() => ({}))
     const audio = typeof body?.audio_base64 === 'string' ? body.audio_base64 : ''
-    if (!audio) return json(req, { error: 'कोई ऑडियो नहीं मिला' }, 400)
+    if (!audio) return json(req, { error: L('कोई ऑडियो नहीं मिला', 'No audio received') }, 400)
     if (audio.length > MAX_AUDIO_BASE64_CHARS || !/^[A-Za-z0-9+/=]+$/.test(audio)) {
-      return json(req, { error: 'ऑडियो बहुत लंबा है। छोटा बोलकर दोबारा कोशिश करें।' }, 400)
+      return json(req, { error: L('ऑडियो बहुत लंबा है। छोटा बोलकर दोबारा कोशिश करें।', 'The audio is too long. Please speak a little less and try again.') }, 400)
     }
 
     if (!(await rateLimit(serviceClient(), 'speech', `ip:${clientIp(req)}`, 15, 10))) {
-      return json(req, { error: 'बहुत ज़्यादा अनुरोध। कृपया कुछ मिनट बाद कोशिश करें।' }, 429)
+      return json(req, { error: L('बहुत ज़्यादा अनुरोध। कृपया कुछ मिनट बाद कोशिश करें।', 'Too many requests. Please try again in a few minutes.') }, 429)
     }
 
     const res = await fetch('https://speech.googleapis.com/v1/speech:recognize', {
@@ -40,8 +43,9 @@ Deno.serve(async (req) => {
         config: {
           encoding: 'WEBM_OPUS',
           sampleRateHertz: 48000,
-          languageCode: 'hi-IN',
-          alternativeLanguageCodes: ['en-IN'],
+          // चुनी हुई भाषा पहले, दूसरी वैकल्पिक — Hinglish बोलने वालों के लिए दोनों चालू रहती हैं
+          languageCode: lang === 'en' ? 'en-IN' : 'hi-IN',
+          alternativeLanguageCodes: [lang === 'en' ? 'hi-IN' : 'en-IN'],
         },
         audio: { content: audio },
       }),
@@ -49,16 +53,16 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       console.error('Speech-to-Text error', res.status, await res.text())
-      return json(req, { error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }, 502)
+      return json(req, { error: L('आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।', 'Could not process the voice. Please try again.') }, 502)
     }
 
     const data = await res.json()
     const transcript = data.results?.map((r) => r.alternatives?.[0]?.transcript).join(' ').trim() || ''
 
-    if (!transcript) return json(req, { error: 'आवाज़ साफ़ समझ नहीं आई। कृपया दोबारा बोलें।' })
+    if (!transcript) return json(req, { error: L('आवाज़ साफ़ समझ नहीं आई। कृपया दोबारा बोलें।', 'Could not hear clearly. Please speak again.') })
     return json(req, { transcript: transcript.slice(0, 300) })
   } catch (err) {
     console.error('speech-to-text', err)
-    return json(req, { error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }, 500)
+    return json(req, { error: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें। / Voice error. Please try again.' }, 500)
   }
 })

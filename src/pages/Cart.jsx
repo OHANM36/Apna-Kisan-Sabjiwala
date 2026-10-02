@@ -11,7 +11,7 @@ import { CartSkeleton } from '../components/Skeleton'
 export default function Cart() {
   const { items, increaseQty, decreaseQty, removeFromCart, subtotal, syncPrices } = useCart()
   const { settings, deliveryRules, loading: settingsLoading } = useSettings()
-  const { t } = useLanguage()
+  const { t, tName, tUnit } = useLanguage()
   const navigate = useNavigate()
 
   const [notice, setNotice] = useState('')
@@ -71,17 +71,17 @@ export default function Cart() {
             <div key={item.id} className="card p-3 flex items-center gap-3">
               <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center text-3xl overflow-hidden shrink-0">
                 {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={item.image_url} alt={tName(item)} className="w-full h-full object-cover" />
                 ) : (
                   item.emoji || '🥬'
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-800 text-sm truncate">{item.name}</h3>
+                <h3 className="font-bold text-gray-800 text-sm truncate">{tName(item)}</h3>
                 {item.sellerName && (
                   <p className="text-[11px] text-gray-400 font-semibold">🧑‍🌾 {item.sellerName}</p>
                 )}
-                <p className="text-gray-500 text-xs">{formatRupee(item.price)} / {item.unit}</p>
+                <p className="text-gray-500 text-xs">{formatRupee(item.price)} / {tUnit(item.unit)}</p>
                 <p className="text-kisan font-bold text-sm mt-0.5">{formatRupee(item.price * item.quantity)}</p>
               </div>
               <div className="flex flex-col items-end gap-2">

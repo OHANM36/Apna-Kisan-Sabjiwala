@@ -21,7 +21,7 @@ const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
 export default function Checkout() {
   const { items, subtotal, clearCart, syncPrices } = useCart()
   const { settings, deliveryRules, loading: settingsLoading, reloadSettings } = useSettings()
-  const { t } = useLanguage()
+  const { t, tTimeSlot, language } = useLanguage()
   const navigate = useNavigate()
 
   const savedCustomer = safeJson(STORAGE_KEY_CUSTOMER, {}) || {}
@@ -73,7 +73,7 @@ export default function Checkout() {
         longitude: loc.lng,
       }))
     } catch (err) {
-      setLocationError(typeof err === 'string' ? err : 'लोकेशन नहीं मिल सकी। कृपया पता खुद लिखें।')
+      setLocationError(typeof err === 'string' ? err : t('err_location_failed'))
     } finally {
       setLocating(false)
     }
@@ -114,13 +114,13 @@ export default function Checkout() {
 
   function validate() {
     const e = {}
-    if (!form.name.trim()) e.name = 'नाम आवश्यक है'
-    if (!/^[6-9]\d{9}$/.test(form.phone.trim())) e.phone = 'सही मोबाइल नंबर डालें (10 अंक)'
-    if (!form.address.trim()) e.address = 'पूरा पता आवश्यक है'
-    if (!form.city.trim()) e.city = 'शहर आवश्यक है'
-    if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = 'सही पिन कोड डालें (6 अंक)'
-    if (!form.deliveryDate) e.deliveryDate = 'डिलीवरी की तारीख चुनें'
-    else if (form.deliveryDate < minDate || form.deliveryDate > maxDate) e.deliveryDate = 'सही तारीख चुनें'
+    if (!form.name.trim()) e.name = t('err_name_required')
+    if (!/^[6-9]\d{9}$/.test(form.phone.trim())) e.phone = t('err_phone_invalid')
+    if (!form.address.trim()) e.address = t('err_address_required')
+    if (!form.city.trim()) e.city = t('err_city_required')
+    if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = t('err_pincode_invalid')
+    if (!form.deliveryDate) e.deliveryDate = t('err_delivery_date_required')
+    else if (form.deliveryDate < minDate || form.deliveryDate > maxDate) e.deliveryDate = t('err_date_invalid')
     else if (!isSlotAvailable(form.deliveryTime, form.deliveryDate, istNow())) e.deliveryTime = t('checkout_slot_invalid')
     setErrors(e)
     return Object.keys(e).length === 0
@@ -136,15 +136,15 @@ export default function Checkout() {
       if (error) throw error
       if (!data?.ok) {
         setCouponMsg(data?.error === 'COUPON_MIN_ORDER' && data.min_order_value
-          ? `इस कूपन के लिए न्यूनतम ऑर्डर ${formatRupee(data.min_order_value)} होना चाहिए`
-          : friendlyError(data?.error))
+          ? t('checkout_coupon_min').replace('{amount}', formatRupee(data.min_order_value))
+          : friendlyError(data?.error, language))
         setDiscount(0)
         return
       }
       setDiscount(Number(data.discount) || 0)
-      setCouponMsg(`✅ कूपन लागू हुआ! आपको ${formatRupee(data.discount)} की छूट मिली`)
+      setCouponMsg(t('checkout_coupon_applied').replace('{amount}', formatRupee(data.discount)))
     } catch (err) {
-      setCouponMsg(friendlyError(err))
+      setCouponMsg(friendlyError(err, language))
       setDiscount(0)
     }
   }
@@ -265,13 +265,13 @@ export default function Checkout() {
           navigate(`/order-confirmation/${placed.order_id}`, { state: { notice: message } })
         },
         onFailure: (message) => {
-          setPaymentError(message + ' कृपया दोबारा भुगतान करने का प्रयास करें।')
+          setPaymentError(message + ' ' + t('err_payment_retry'))
           setSubmitting(false) // वही ऑर्डर दोबारा इस्तेमाल होगा, नया नहीं बनेगा
         },
       })
     } catch (err) {
       console.error(err)
-      setPaymentError(friendlyError(err)) // तकनीकी error.message ग्राहक को नहीं दिखता
+      setPaymentError(friendlyError(err, language)) // तकनीकी error.message ग्राहक को नहीं दिखता
       if (/COD_DISABLED/.test(String(err?.message))) {
         setPayMethod(PAYMENT_ONLINE)
         reloadSettings() // एडमिन ने COD बंद कर दिया — ताज़ा सेटिंग लाएँ
@@ -344,7 +344,7 @@ export default function Checkout() {
               <select className="input-field" value={form.deliveryTime} onChange={(e) => updateField('deliveryTime', e.target.value)}>
                 {DELIVERY_TIME_SLOTS.map((slot) => {
                   const ok = isSlotAvailable(slot, form.deliveryDate, now)
-                  return <option key={slot} value={slot} disabled={!ok}>{ok ? slot : `${slot} (${t('checkout_slot_passed')})`}</option>
+                  return <option key={slot} value={slot} disabled={!ok}>{ok ? tTimeSlot(slot) : `${tTimeSlot(slot)} (${t('checkout_slot_passed')})`}</option>
                 })}
               </select>
             </Field>

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
+import { useLanguage } from '../context/LanguageContext'
 import VegetableCard from '../components/VegetableCard'
 import { VendorDetailSkeleton } from '../components/Skeleton'
 
 export default function VendorDetail() {
+  const { t } = useLanguage()
   const { vendorId } = useParams()
   const [vendor, setVendor] = useState(null)
   const [vegetables, setVegetables] = useState([])
@@ -57,8 +59,8 @@ export default function VendorDetail() {
         <Header />
         <div className="text-center py-16 px-6">
           <span className="text-6xl block mb-3">🚫</span>
-          <p className="text-gray-500 font-medium mb-4">यह विक्रेता उपलब्ध नहीं है</p>
-          <Link to="/vendors" className="text-kisan font-bold text-sm">← सभी विक्रेता देखें</Link>
+          <p className="text-gray-500 font-medium mb-4">{t('vendor_unavailable')}</p>
+          <Link to="/vendors" className="text-kisan font-bold text-sm">{t('vendor_all_long')}</Link>
         </div>
       </div>
     )
@@ -68,7 +70,7 @@ export default function VendorDetail() {
     <div className="min-h-screen pb-24">
       <Header />
       <div className="px-4 py-4 animate-fade-slide-in">
-        <Link to="/vendors" className="text-kisan text-sm font-bold mb-3 inline-block">← सभी विक्रेता</Link>
+        <Link to="/vendors" className="text-kisan text-sm font-bold mb-3 inline-block">{t('vendor_all_short')}</Link>
 
         <div className="flex items-center gap-3 mb-5">
           <div className="w-16 h-16 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200 shrink-0">
@@ -88,7 +90,7 @@ export default function VendorDetail() {
         {vegetables.length === 0 ? (
           <div className="text-center py-16">
             <span className="text-5xl block mb-3">🥬</span>
-            <p className="text-gray-500 font-medium">इस विक्रेता के पास अभी कोई सब्ज़ी उपलब्ध नहीं है</p>
+            <p className="text-gray-500 font-medium">{t('vendor_no_veg')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2.5">

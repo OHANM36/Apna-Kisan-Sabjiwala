@@ -1,3 +1,4 @@
+import { bi } from './translations.js'
 /**
  * ऑनलाइन भुगतान (Razorpay Checkout) — UPI, कार्ड, नेट बैंकिंग।
  *
@@ -55,7 +56,7 @@ async function invoke(name, body) {
 export async function startOnlinePayment({ orderId, accessToken, customerName, customerPhone, orderNumber, onVerified, onPending, onFailure }) {
   const scriptLoaded = await loadRazorpayScript()
   if (!scriptLoaded) {
-    onFailure('भुगतान गेटवे लोड नहीं हो सका। इंटरनेट कनेक्शन जांचें।')
+    onFailure(bi('भुगतान गेटवे लोड नहीं हो सका। इंटरनेट कनेक्शन जांचें।', 'Could not load the payment gateway. Check your internet connection.'))
     return
   }
 
@@ -63,7 +64,7 @@ export async function startOnlinePayment({ orderId, accessToken, customerName, c
   try {
     rzpOrder = await invoke('create-razorpay-order', { order_id: orderId, access_token: accessToken })
   } catch (e) {
-    onFailure(e.code === 'PAYMENT_NOT_CONFIGURED' ? 'भुगतान सेटअप अधूरा है। एडमिन से संपर्क करें।' : 'भुगतान शुरू नहीं हो सका। कृपया दोबारा प्रयास करें।')
+    onFailure(e.code === 'PAYMENT_NOT_CONFIGURED' ? bi('भुगतान सेटअप अधूरा है। एडमिन से संपर्क करें।', 'Payment setup is incomplete. Please contact the admin.') : bi('भुगतान शुरू नहीं हो सका। कृपया दोबारा प्रयास करें।', 'Could not start the payment. Please try again.'))
     return
   }
   if (rzpOrder.already_paid) {
@@ -78,7 +79,7 @@ export async function startOnlinePayment({ orderId, accessToken, customerName, c
     currency: rzpOrder.currency || 'INR',
     order_id: rzpOrder.razorpay_order_id,
     name: 'अपना किसान सब्ज़ीवाला',
-    description: `ऑर्डर ${orderNumber} का भुगतान`,
+    description: bi(`ऑर्डर ${orderNumber} का भुगतान`, `Payment for order ${orderNumber}`),
     prefill: { name: customerName, contact: customerPhone },
     theme: { color: '#1e7d32' },
     method: { upi: true, card: true, netbanking: true, wallet: true },
@@ -95,19 +96,19 @@ export async function startOnlinePayment({ orderId, accessToken, customerName, c
         onVerified()
       } catch {
         // पैसा कट चुका हो सकता है, पर पुष्टि नहीं हुई — webhook इसे पूरा कर देगा। नया ऑर्डर/भुगतान न कराएँ।
-        onPending('भुगतान की पुष्टि हो रही है। कृपया दोबारा भुगतान न करें — कुछ देर में ऑर्डर की स्थिति अपने आप अपडेट हो जाएगी।')
+        onPending(bi('भुगतान की पुष्टि हो रही है। कृपया दोबारा भुगतान न करें — कुछ देर में ऑर्डर की स्थिति अपने आप अपडेट हो जाएगी।', 'Confirming your payment. Please do not pay again — the order status will update automatically shortly.'))
       }
     },
     modal: {
       ondismiss: function () {
-        if (!settled) onFailure('भुगतान रद्द कर दिया गया।')
+        if (!settled) onFailure(bi('भुगतान रद्द कर दिया गया।', 'Payment was cancelled.'))
       },
     },
   }
 
   const rzp = new window.Razorpay(options)
   rzp.on('payment.failed', function (response) {
-    onFailure(response?.error?.description || 'भुगतान असफल हुआ। कृपया दोबारा प्रयास करें।')
+    onFailure(response?.error?.description || bi('भुगतान असफल हुआ। कृपया दोबारा प्रयास करें।', 'Payment failed. Please try again.'))
   })
   rzp.open()
 }

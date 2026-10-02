@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
+import { useLanguage } from '../context/LanguageContext'
 import { VendorGridSkeleton } from '../components/Skeleton'
 
 export default function Vendors() {
+  const { t } = useLanguage()
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -28,15 +30,15 @@ export default function Vendors() {
     <div className="min-h-screen pb-24">
       <Header />
       <div className="px-4 py-4 animate-fade-slide-in">
-        <h2 className="font-bold text-gray-800 text-lg mb-1">हमारे विक्रेता</h2>
-        <p className="text-gray-500 text-sm mb-4">किसी विक्रेता पर टैप करके उसकी सब्ज़ियाँ देखें</p>
+        <h2 className="font-bold text-gray-800 text-lg mb-1">{t('vendors_title')}</h2>
+        <p className="text-gray-500 text-sm mb-4">{t('vendors_subtitle')}</p>
 
         {loading ? (
           <VendorGridSkeleton />
         ) : vendors.length === 0 ? (
           <div className="text-center py-16">
             <span className="text-6xl block mb-3">🧑‍🌾</span>
-            <p className="text-gray-500 font-medium">अभी तक कोई विक्रेता उपलब्ध नहीं</p>
+            <p className="text-gray-500 font-medium">{t('vendors_none')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">

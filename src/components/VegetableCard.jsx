@@ -10,7 +10,7 @@ function tierCartId(vegId, tier) {
 
 function VegetableCard({ veg }) {
   const { items, addToCart, increaseQty, decreaseQty } = useCart()
-  const { t, tName } = useLanguage()
+  const { t, tName, tUnit } = useLanguage()
   const unavailable = veg.stock_status === 'अनुपलब्ध'
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
@@ -48,6 +48,7 @@ function VegetableCard({ veg }) {
       sellerId: veg.seller_id || null,
       sellerName: veg.sellers?.business_name || null,
       name: veg.name,
+      name_en: veg.name_en || null,
       emoji: veg.emoji,
       image_url: veg.image_url,
       price: selectedTier.price,
@@ -113,12 +114,12 @@ function VegetableCard({ veg }) {
             {hasDiscount && (
               <span className="font-sans text-[10px] text-gray-400 font-medium line-through">{formatRupee(veg.mrp)}</span>
             )}
-            <span className="font-sans text-[10px] text-gray-500 font-medium">/ {veg.unit}</span>
+            <span className="font-sans text-[10px] text-gray-500 font-medium">/ {tUnit(veg.unit)}</span>
           </p>
         ) : (
           <p className="font-display text-kisan font-bold text-sm">
             {formatRupee(selectedTier.price)}{' '}
-            <span className="font-sans text-[10px] text-gray-500 font-medium">/ {selectedTier.qty} {selectedTier.unit}</span>
+            <span className="font-sans text-[10px] text-gray-500 font-medium">/ {selectedTier.qty} {tUnit(selectedTier.unit)}</span>
           </p>
         )}
 
@@ -130,7 +131,7 @@ function VegetableCard({ veg }) {
           >
             {tiers.map((t, idx) => (
               <option key={idx} value={idx}>
-                {t.qty} {t.unit} — {formatRupee(t.price)}
+                {t.qty} {tUnit(t.unit)} — {formatRupee(t.price)}
               </option>
             ))}
           </select>

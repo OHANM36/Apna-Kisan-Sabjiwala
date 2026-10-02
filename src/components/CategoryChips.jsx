@@ -1,4 +1,7 @@
+import { useLanguage } from '../context/LanguageContext'
+
 export default function CategoryChips({ categories, activeSlug, onSelect }) {
+  const { t, tName } = useLanguage()
   return (
     <div className="flex gap-2 overflow-x-auto px-4 py-3 no-scrollbar">
       <button
@@ -7,7 +10,7 @@ export default function CategoryChips({ categories, activeSlug, onSelect }) {
           !activeSlug ? 'bg-kisan-orange text-kisan-ink border-kisan-orange' : 'bg-white text-gray-600 border-kisan-crate'
         }`}
       >
-        सभी सब्ज़ियाँ
+        {t('category_all_veg')}
       </button>
       {categories.map((cat) => (
         <button
@@ -17,7 +20,7 @@ export default function CategoryChips({ categories, activeSlug, onSelect }) {
             activeSlug === cat.slug ? 'bg-kisan-orange text-kisan-ink border-kisan-orange' : 'bg-white text-gray-600 border-kisan-crate'
           }`}
         >
-          {cat.name}
+          {tName(cat)}
         </button>
       ))}
     </div>

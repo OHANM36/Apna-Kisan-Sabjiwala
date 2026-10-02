@@ -111,8 +111,8 @@ const translations = {
   order_cod_pay_note: { hi: 'डिलीवरी पर {amount} कैश दें। पैसे देने के बाद ही डिलीवरी पिन बताएँ।', en: 'Pay {amount} in cash on delivery. Share the delivery PIN only after paying.' },
   order_cod_online_title: { hi: 'डिलीवरी पर ऑनलाइन भुगतान (UPI)', en: 'Pay Online on Delivery (UPI)' },
   order_cod_online_pay_note: { hi: 'डिलीवरी पर {amount} UPI से दें — डिलीवरी बॉय QR दिखाएगा। पैसे देने के बाद ही डिलीवरी पिन बताएँ।', en: 'Pay {amount} by UPI on delivery — the delivery person will show a QR. Share the delivery PIN only after paying.' },
-  order_cod_online_received: { hi: 'ऑनलाइन भुगतान मिल गया', en: 'Online payment received' },
-  order_cod_received: { hi: 'कैश मिल गया', en: 'Cash received' },
+  order_cod_online_received: { hi: 'ऑनलाइन भुगतान हो गया', en: 'Online payment done' },
+  order_cod_received: { hi: 'कैश दे दिया गया', en: 'Cash paid' },
   checkout_processing: { hi: 'प्रोसेस हो रहा है...', en: 'Processing...' },
 
   // Checkout validation/coupon messages
@@ -147,6 +147,62 @@ const translations = {
   // सामान्य
   loading: { hi: 'लोड हो रहा है...', en: 'Loading...' },
   order_not_found: { hi: 'ऑर्डर नहीं मिला', en: 'Order not found' },
+
+  // मेरे ऑर्डर (OrderHistory)
+  oh_title: { hi: 'मेरे ऑर्डर', en: 'My Orders' },
+  oh_phone_ph: { hi: 'मोबाइल नंबर डालें', en: 'Enter mobile number' },
+  oh_order_no_ph: { hi: 'अपना कोई ऑर्डर नंबर डालें (जैसे AKS-...)', en: 'Enter any one of your order numbers (e.g. AKS-...)' },
+  oh_view: { hi: 'देखें', en: 'View' },
+  oh_security_note: { hi: 'आपकी जानकारी की सुरक्षा के लिए ऑर्डर नंबर भी पूछा जाता है। यह आपको ऑर्डर की पुष्टि में मिला था।', en: 'For your security we also ask for an order number. You received it in your order confirmation.' },
+  oh_err_bad_input: { hi: 'सही मोबाइल नंबर और ऑर्डर नंबर डालें।', en: 'Enter a valid mobile number and order number.' },
+  oh_err_mismatch: { hi: 'ये दोनों मेल नहीं खाते। मोबाइल नंबर और ऑर्डर नंबर दोबारा जाँचें।', en: "These two don't match. Please check the mobile number and order number again." },
+  oh_err_none_available: { hi: 'इस ऑर्डर की कोई सब्ज़ी अभी उपलब्ध नहीं है।', en: 'None of the vegetables in this order are available right now.' },
+  oh_items: { hi: 'वस्तुएँ', en: 'items' },
+  oh_payment: { hi: 'भुगतान', en: 'Payment' },
+  oh_details: { hi: 'विवरण देखें', en: 'View details' },
+  oh_reorder: { hi: 'दोबारा ऑर्डर करें', en: 'Order again' },
+
+  // विक्रेता
+  vendors_title: { hi: 'हमारे विक्रेता', en: 'Our Vendors' },
+  vendors_subtitle: { hi: 'किसी विक्रेता पर टैप करके उसकी सब्ज़ियाँ देखें', en: 'Tap a vendor to see their vegetables' },
+  vendors_none: { hi: 'अभी तक कोई विक्रेता उपलब्ध नहीं', en: 'No vendors available yet' },
+  vendor_unavailable: { hi: 'यह विक्रेता उपलब्ध नहीं है', en: 'This vendor is not available' },
+  vendor_all_long: { hi: '← सभी विक्रेता देखें', en: '← View all vendors' },
+  vendor_all_short: { hi: '← सभी विक्रेता', en: '← All vendors' },
+  vendor_no_veg: { hi: 'इस विक्रेता के पास अभी कोई सब्ज़ी उपलब्ध नहीं है', en: 'This vendor has no vegetables available right now' },
+
+  // छोटे कॉम्पोनेंट
+  call_help: { hi: 'सहायता के लिए कॉल करें', en: 'Call for help' },
+  category_all_veg: { hi: 'सभी सब्ज़ियाँ', en: 'All vegetables' },
+  watcher_title: { hi: 'आपके ऑर्डर की स्थिति बदली', en: 'Your order status changed' },
+  watcher_close: { hi: 'बंद करें', en: 'Close' },
+  watcher_view: { hi: 'ऑर्डर देखें', en: 'View order' },
+
+  // चेकआउट / ऑर्डर-पुष्टि के बचे हुए टेक्स्ट
+  err_date_invalid: { hi: 'सही तारीख चुनें', en: 'Select a valid date' },
+  checkout_coupon_min: { hi: 'इस कूपन के लिए न्यूनतम ऑर्डर {amount} होना चाहिए', en: 'This coupon needs a minimum order of {amount}' },
+  checkout_coupon_applied: { hi: '✅ कूपन लागू हुआ! आपको {amount} की छूट मिली', en: '✅ Coupon applied! You saved {amount}' },
+  order_pending_heading: { hi: 'ऑर्डर बन गया — भुगतान बाकी', en: 'Order created — payment pending' },
+  order_payment_due: { hi: 'भुगतान बाकी है', en: 'Payment pending' },
+  order_pay_now: { hi: '{amount} अभी भुगतान करें', en: 'Pay {amount} now' },
+
+  // AI ऑर्डर सहायक
+  ai_greeting: { hi: 'नमस्ते! 🙏 मुझे बताएं आपको कौन सी सब्ज़ी और कितनी चाहिए — जैसे "2 किलो आलू और 1 किलो टमाटर"। आप टाइप कर सकते हैं या 🎤 दबाकर बोल भी सकते हैं।', en: 'Hello! 🙏 Tell me which vegetables and how much you need — e.g. "2 kg potato and 1 kg tomato". You can type, or tap 🎤 and speak.' },
+  ai_btn: { hi: 'AI से ऑर्डर करें', en: 'Order with AI' },
+  ai_title: { hi: 'AI ऑर्डर सहायक', en: 'AI Order Assistant' },
+  ai_subtitle: { hi: 'सब्ज़ी बोलें या टाइप करें', en: 'Speak or type your vegetables' },
+  ai_thinking: { hi: 'सोच रहा हूं...', en: 'Thinking...' },
+  ai_your_order: { hi: 'आपका ऑर्डर:', en: 'Your order:' },
+  ai_total: { hi: 'कुल राशि', en: 'Total' },
+  ai_cancel: { hi: '❌ रद्द करें', en: '❌ Cancel' },
+  ai_confirm: { hi: '✅ ऑर्डर कन्फर्म करें', en: '✅ Confirm order' },
+  ai_ph_idle: { hi: 'जैसे: 2 किलो आलू देना', en: 'e.g. 2 kg potatoes please' },
+  ai_ph_listening: { hi: 'बोलिए... (रुकने के लिए 🎤 दबाएं)', en: 'Speak... (tap 🎤 to stop)' },
+  ai_ph_transcribing: { hi: 'आवाज़ समझी जा रही है...', en: 'Understanding your voice...' },
+  ai_err_mic: { hi: 'माइक की अनुमति नहीं मिली। कृपया ब्राउज़र सेटिंग में माइक को अनुमति दें।', en: 'Microphone permission was denied. Please allow the microphone in your browser settings.' },
+  ai_err_voice: { hi: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।', en: 'Could not understand the voice. Please try again.' },
+  ai_err_generic: { hi: 'माफ़ करें, कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।', en: 'Sorry, something went wrong. Please try again.' },
+  ai_cancelled: { hi: 'ठीक है, ऑर्डर रद्द कर दिया। कुछ और चाहिए तो बताएं।', en: 'Okay, the order has been cancelled. Tell me if you need anything else.' },
 }
 
 // डेटाबेस में सेव स्थिति-मान (order_status, payment_status) दिखाने के लिए अनुवाद
@@ -200,6 +256,24 @@ export function translateUnit(value, lang) {
   const entry = unitMap[value]
   if (!entry) return value
   return entry[lang] || entry.hi || value
+}
+
+// "2 किलो" / "500 ग्राम" जैसे जुड़े हुए टेक्स्ट में सिर्फ़ यूनिट का शब्द बदलता है (लंबे शब्द पहले: "आधा किलो" से पहले "किलो" नहीं)
+export function translateUnitText(value, lang) {
+  if (lang !== 'en' || typeof value !== 'string') return value
+  let out = value
+  Object.keys(unitMap).sort((a, b) => b.length - a.length).forEach((hi) => {
+    out = out.split(hi).join(unitMap[hi].en)
+  })
+  return out
+}
+
+// React के बाहर (utils) के संदेशों के लिए: चुनी हुई भाषा localStorage से (LanguageContext वही key लिखता है)
+export function currentLanguage() {
+  try { return localStorage.getItem('aks_language') === 'en' ? 'en' : 'hi' } catch { return 'hi' }
+}
+export function bi(hi, en) {
+  return currentLanguage() === 'en' ? en : hi
 }
 
 /**

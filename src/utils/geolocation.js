@@ -1,19 +1,20 @@
+import { bi } from './translations.js'
 /**
  * ब्राउज़र की GPS लोकेशन लेकर पते में बदलता है (OpenStreetMap Nominatim - मुफ़्त, बिना API key)
  */
 export function getCurrentPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject('इस डिवाइस/ब्राउज़र में लोकेशन सुविधा उपलब्ध नहीं है।')
+      reject(bi('इस डिवाइस/ब्राउज़र में लोकेशन सुविधा उपलब्ध नहीं है।', 'Location is not available on this device/browser.'))
       return
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
-          reject('लोकेशन की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग में लोकेशन को अनुमति दें।')
+          reject(bi('लोकेशन की अनुमति नहीं दी गई। कृपया ब्राउज़र सेटिंग में लोकेशन को अनुमति दें।', 'Location permission was denied. Please allow location in your browser settings.'))
         } else {
-          reject('आपकी लोकेशन नहीं मिल सकी। कृपया दोबारा प्रयास करें।')
+          reject(bi('आपकी लोकेशन नहीं मिल सकी। कृपया दोबारा प्रयास करें।', 'Could not get your location. Please try again.'))
         }
       },
       { enableHighAccuracy: true, timeout: 10000 }

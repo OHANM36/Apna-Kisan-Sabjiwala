@@ -121,7 +121,7 @@ function formatQtyLabel(qty, unit) {
 
 // ---------- Google Gemini को structured extraction के लिए बुलाना (function calling) ----------
 
-async function extractOrderItems(message, vegetableList) {
+async function extractOrderItems(message, vegetableList, lang = 'hi') {
   const vegNamesForPrompt = vegetableList.map((v) => `- ${v.name} (${v.unit})`).join('\n')
 
   const systemPrompt = `आप "अपना किसान सब्ज़ीवाला" ऐप के लिए एक ऑर्डर समझने वाले सहायक हैं।
@@ -136,7 +136,7 @@ ${vegNamesForPrompt}
 - मात्रा और यूनिट को हमेशा इनमें से किसी एक में बदलें: किलो, ग्राम, आधा किलो, नग, गड्डी, दर्जन।
 - अगर ग्राहक ने सिर्फ सब्ज़ी का नाम बताया पर मात्रा नहीं बताई, तो items में मत डालें — clarification_needed में हिंदी में पूछें "कितना/कितनी चाहिए?"
 - reply_hindi छोटा, दोस्ताना और बिना रुपये के आंकड़ों वाला होना चाहिए।
-- हमेशा extract_vegetable_order फंक्शन को ही कॉल करें, कभी सीधा टेक्स्ट जवाब मत दें।`
+- हमेशा extract_vegetable_order फंक्शन को ही कॉल करें, कभी सीधा टेक्स्ट जवाब मत दें।${lang === 'en' ? '\n- ग्राहक ने ऐप अंग्रेज़ी में चुना है: reply_hindi (फ़ील्ड का नाम वही रहेगा) और clarification_needed सरल English में लिखें, हिंदी में नहीं। matched_vegetable_name फिर भी लिस्ट से बिल्कुल वैसा ही रहे।' : ''}`
 
   const functionDeclaration = {
     name: 'extract_vegetable_order',
@@ -212,27 +212,30 @@ Deno.serve(async (req) => {
   if (pre) return pre
 
   try {
+    const body = await req.json().catch(() => ({}))
+    const lang = body?.language === 'en' ? 'en' : 'hi'
+    const L = (hi, en) => (lang === 'en' ? en : hi)
+
     if (!GOOGLE_API_KEY) {
-      return json(req, { error: 'AI सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें।' }, 500)
+      return json(req, { error: L('AI सेवा अभी सेटअप नहीं हुई है। एडमिन से संपर्क करें।', 'The AI service is not set up yet. Please contact the admin.') }, 500)
     }
 
-    const body = await req.json().catch(() => ({}))
     const message = typeof body?.message === 'string' ? body.message.trim() : ''
-    if (!message) return json(req, { error: 'कोई संदेश नहीं मिला' }, 400)
+    if (!message) return json(req, { error: L('कोई संदेश नहीं मिला', 'No message received') }, 400)
     if (message.length > MAX_MESSAGE_CHARS) {
-      return json(req, { error: `संदेश छोटा रखें (अधिकतम ${MAX_MESSAGE_CHARS} अक्षर)` }, 400)
+      return json(req, { error: L(`संदेश छोटा रखें (अधिकतम ${MAX_MESSAGE_CHARS} अक्षर)`, `Please keep the message short (max ${MAX_MESSAGE_CHARS} characters)`) }, 400)
     }
 
     const supabase = serviceClient()
 
     // हर कॉल आपकी Google API key पर बिल बनाती है → IP के हिसाब से सीमा
     if (!(await rateLimit(supabase, 'ai_parse', `ip:${clientIp(req)}`, 30, 10))) {
-      return json(req, { error: 'बहुत ज़्यादा अनुरोध। कृपया कुछ मिनट बाद कोशिश करें।' }, 429)
+      return json(req, { error: L('बहुत ज़्यादा अनुरोध। कृपया कुछ मिनट बाद कोशिश करें।', 'Too many requests. Please try again in a few minutes.') }, 429)
     }
 
     // हमेशा ताज़ा, असली कीमत और उपलब्धता डेटाबेस से लें — सिर्फ़ दुकान की अपनी + अप्रूव्ड/सक्रिय सेलर की सब्ज़ियाँ
     const [{ data: allVeg, error: vegErr }, { data: okSellers, error: selErr }] = await Promise.all([
-      supabase.from('vegetables').select('id, name, price, unit, price_tiers, stock_status, seller_id').eq('is_active', true),
+      supabase.from('vegetables').select('id, name, name_en, price, unit, price_tiers, stock_status, seller_id').eq('is_active', true),
       supabase.from('sellers').select('id, business_name').eq('is_approved', true).eq('is_active', true),
     ])
     if (vegErr) throw vegErr
@@ -240,7 +243,7 @@ Deno.serve(async (req) => {
     const sellerName = new Map((okSellers || []).map((s) => [s.id, s.business_name]))
     const vegetables = (allVeg || []).filter((v) => !v.seller_id || sellerName.has(v.seller_id))
 
-    const extraction = await extractOrderItems(message, vegetables)
+    const extraction = await extractOrderItems(message, vegetables, lang)
 
     const matchedItems = []
     const unmatched = []
@@ -248,18 +251,20 @@ Deno.serve(async (req) => {
     for (const rawItem of (extraction.items || []).slice(0, 20)) {
       const veg = vegetables.find((v) => v.name === rawItem.matched_vegetable_name)
       if (!veg) {
-        unmatched.push({ spoken_text: rawItem.spoken_text, reason: 'सब्ज़ी पहचानी नहीं गई' })
+        unmatched.push({ spoken_text: rawItem.spoken_text, reason: L('सब्ज़ी पहचानी नहीं गई', 'Vegetable not recognised') })
         continue
       }
       if (veg.stock_status !== 'उपलब्ध') {
-        unmatched.push({ spoken_text: rawItem.spoken_text, reason: `${veg.name} अभी अनुपलब्ध है` })
+        unmatched.push({ spoken_text: rawItem.spoken_text, reason: L(`${veg.name} अभी अनुपलब्ध है`, `${lang === 'en' && veg.name_en ? veg.name_en : veg.name} is currently unavailable`) })
         continue
       }
       const priced = priceItem(veg, Number(rawItem.quantity), rawItem.unit)
       if (!priced.ok) {
         unmatched.push({
           spoken_text: rawItem.spoken_text,
-          reason: priced.tooMuch ? `${veg.name} की मात्रा बहुत ज़्यादा है` : `${veg.name} की मात्रा/माप साफ़ नहीं समझ आई`,
+          reason: priced.tooMuch
+            ? L(`${veg.name} की मात्रा बहुत ज़्यादा है`, `The quantity for ${lang === 'en' && veg.name_en ? veg.name_en : veg.name} is too large`)
+            : L(`${veg.name} की मात्रा/माप साफ़ नहीं समझ आई`, `Could not understand the quantity/unit for ${lang === 'en' && veg.name_en ? veg.name_en : veg.name}`),
         })
         continue
       }
@@ -268,6 +273,7 @@ Deno.serve(async (req) => {
         seller_id: veg.seller_id || null,
         seller_name: veg.seller_id ? sellerName.get(veg.seller_id) || null : null,
         name: veg.name,
+        name_en: veg.name_en || null,
         unit: priced.unit_label,
         rate_label: priced.rate_label,
         unit_price: priced.unit_price,        // प्रति-इकाई कीमत (DB से)
@@ -291,6 +297,6 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error('parse-order', err)
     // detail कभी नहीं भेजते: upstream (Gemini) का error-text ग्राहक को नहीं जाना चाहिए
-    return json(req, { error: 'कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }, 500)
+    return json(req, { error: 'कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें। / Something went wrong. Please try again.' }, 500)
   }
 })

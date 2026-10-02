@@ -56,6 +56,7 @@ export function CartProvider({ children }) {
           sellerId: vegetable.sellerId || vegetable.seller_id || null,
           sellerName: vegetable.sellerName || vegetable.sellers?.business_name || null,
           name: vegetable.name,
+          name_en: vegetable.name_en || null,
           emoji: vegetable.emoji,
           image_url: vegetable.image_url,
           price: vegetable.price,

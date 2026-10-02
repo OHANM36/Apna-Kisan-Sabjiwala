@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { safeGet, safeSet } from '../utils/safeStorage'
 import { supabase } from '../supabaseClient'
+import { useLanguage } from '../context/LanguageContext'
 
 const SEEN_KEY = 'aks_welcome_popup_seen_date'
 
 export default function WelcomePopup() {
+  const { t } = useLanguage()
   const [popup, setPopup] = useState(null)
   const [visible, setVisible] = useState(false)
 
@@ -45,7 +47,7 @@ export default function WelcomePopup() {
           <h2 className="font-extrabold text-lg text-gray-800 mb-2">{popup.title}</h2>
           <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{popup.message}</p>
           <button onClick={handleClose} className="btn-primary w-full mt-5">
-            {popup.button_text || 'ठीक है'}
+            {popup.button_text || t('install_ok')}
           </button>
         </div>
       </div>

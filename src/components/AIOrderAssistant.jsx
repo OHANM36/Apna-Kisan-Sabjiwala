@@ -4,11 +4,11 @@ import { supabase } from '../supabaseClient'
 import { useCart } from '../context/CartContext'
 import { formatRupee } from '../utils/format'
 import { safeSet } from '../utils/safeStorage'
+import { useLanguage } from '../context/LanguageContext'
+import { translateUnitText } from '../utils/translations'
 
-const GREETING = {
-  role: 'ai',
-  text: 'नमस्ते! 🙏 मुझे बताएं आपको कौन सी सब्ज़ी और कितनी चाहिए — जैसे "2 किलो आलू और 1 किलो टमाटर"। आप टाइप कर सकते हैं या 🎤 दबाकर बोल भी सकते हैं।',
-}
+// तय संदेश key से रखे जाते हैं (text से नहीं), ताकि भाषा बदलते ही वे नई भाषा में दिखें
+const GREETING = { role: 'ai', key: 'ai_greeting' }
 
 export default function AIOrderAssistant() {
   const [open, setOpen] = useState(false)
@@ -23,6 +23,7 @@ export default function AIOrderAssistant() {
   const audioChunksRef = useRef([])
   const scrollRef = useRef(null)
   const { addToCart } = useCart()
+  const { t, language } = useLanguage()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function AIOrderAssistant() {
       console.error(err)
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', text: 'माइक की अनुमति नहीं मिली। कृपया ब्राउज़र सेटिंग में माइक को अनुमति दें।' },
+        { role: 'ai', key: 'ai_err_mic' },
       ])
     }
   }
@@ -75,7 +76,7 @@ export default function AIOrderAssistant() {
     try {
       const base64 = await blobToBase64(blob)
       const { data, error } = await supabase.functions.invoke('speech-to-text', {
-        body: { audio_base64: base64 },
+        body: { audio_base64: base64, language },
       })
       if (error) throw error
       if (data.error) {
@@ -85,7 +86,7 @@ export default function AIOrderAssistant() {
       }
     } catch (err) {
       console.error(err)
-      setMessages((prev) => [...prev, { role: 'ai', text: 'आवाज़ समझने में गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' }])
+      setMessages((prev) => [...prev, { role: 'ai', key: 'ai_err_voice' }])
     } finally {
       setTranscribing(false)
     }
@@ -115,7 +116,7 @@ export default function AIOrderAssistant() {
 
     try {
       const { data, error } = await supabase.functions.invoke('parse-order', {
-        body: { message: text },
+        body: { message: text, language },
       })
 
       if (error) throw error
@@ -142,7 +143,7 @@ export default function AIOrderAssistant() {
       console.error(err)
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', text: 'माफ़ करें, कुछ गड़बड़ी हुई। कृपया दोबारा प्रयास करें।' },
+        { role: 'ai', key: 'ai_err_generic' },
       ])
     } finally {
       setLoading(false)
@@ -180,6 +181,7 @@ export default function AIOrderAssistant() {
           sellerId: item.seller_id || null,
           sellerName: item.seller_name || null,
           name: item.name,
+          name_en: item.name_en || null,
           price: item.unit_price,
           unit: item.unit,
           emoji: '🥬',
@@ -194,7 +196,7 @@ export default function AIOrderAssistant() {
 
   function handleCancel() {
     setDraftItems([])
-    setMessages((prev) => [...prev, { role: 'ai', text: 'ठीक है, ऑर्डर रद्द कर दिया। कुछ और चाहिए तो बताएं।' }])
+    setMessages((prev) => [...prev, { role: 'ai', key: 'ai_cancelled' }])
   }
 
   const draftTotal = draftItems.reduce((s, i) => s + i.item_total, 0)
@@ -207,7 +209,7 @@ export default function AIOrderAssistant() {
           className="fixed right-4 bottom-36 z-40 bg-kisan-dark text-white pl-3 pr-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 active:scale-95 transition-transform"
         >
           <span className="text-lg">🤖</span>
-          <span className="text-xs font-bold">AI से ऑर्डर करें</span>
+          <span className="text-xs font-bold">{t('ai_btn')}</span>
         </button>
       )}
 
@@ -219,8 +221,8 @@ export default function AIOrderAssistant() {
               <div className="flex items-center gap-2">
                 <span className="text-xl">🤖</span>
                 <div>
-                  <p className="font-display font-bold text-sm leading-tight">AI ऑर्डर सहायक</p>
-                  <p className="text-[10px] text-green-200">सब्ज़ी बोलें या टाइप करें</p>
+                  <p className="font-display font-bold text-sm leading-tight">{t('ai_title')}</p>
+                  <p className="text-[10px] text-green-200">{t('ai_subtitle')}</p>
                 </div>
               </div>
               <button onClick={() => setOpen(false)} className="text-white text-2xl leading-none">×</button>
@@ -235,7 +237,7 @@ export default function AIOrderAssistant() {
                       m.role === 'user' ? 'bg-kisan text-white' : 'bg-white text-kisan-ink border border-kisan-crate'
                     }`}
                   >
-                    {m.text}
+                    {m.key ? t(m.key) : m.text}
                     {m.unmatched && m.unmatched.length > 0 && (
                       <div className="mt-1 text-xs text-kisan-tomato">
                         {m.unmatched.map((u, i) => (
@@ -249,7 +251,7 @@ export default function AIOrderAssistant() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-kisan-crate rounded-2xl px-3 py-2 text-sm text-gray-400">
-                    सोच रहा हूं...
+                    {t('ai_thinking')}
                   </div>
                 </div>
               )}
@@ -258,10 +260,10 @@ export default function AIOrderAssistant() {
             {/* ड्राफ्ट ऑर्डर सारांश */}
             {draftItems.length > 0 && (
               <div className="border-t border-kisan-crate bg-white px-3 py-2 max-h-40 overflow-y-auto">
-                <p className="text-xs font-bold text-gray-500 mb-1">आपका ऑर्डर:</p>
+                <p className="text-xs font-bold text-gray-500 mb-1">{t('ai_your_order')}</p>
                 {draftItems.map((item) => (
                   <div key={item.vegetable_id} className="flex justify-between items-center text-xs py-1">
-                    <span className="text-gray-700">{item.name} — {item.rate_label}</span>
+                    <span className="text-gray-700">{language === 'en' && item.name_en ? item.name_en : item.name} — {translateUnitText(item.rate_label, language)}</span>
                     <span className="flex items-center gap-2">
                       <span className="font-bold text-kisan">{formatRupee(item.item_total)}</span>
                       <button onClick={() => removeDraftItem(item.vegetable_id)} className="text-red-400 font-bold">×</button>
@@ -269,15 +271,15 @@ export default function AIOrderAssistant() {
                   </div>
                 ))}
                 <div className="flex justify-between items-center text-sm font-bold border-t border-dashed border-kisan-crate mt-1 pt-1">
-                  <span>कुल राशि</span>
+                  <span>{t('ai_total')}</span>
                   <span className="text-kisan">{formatRupee(draftTotal)}</span>
                 </div>
                 <div className="flex gap-2 mt-2">
                   <button onClick={handleCancel} className="flex-1 text-xs font-bold text-red-500 border-2 border-red-200 rounded-xl py-1.5">
-                    ❌ रद्द करें
+                    {t('ai_cancel')}
                   </button>
                   <button onClick={handleConfirmOrder} className="flex-1 text-xs font-bold bg-kisan text-white rounded-xl py-1.5">
-                    ✅ ऑर्डर कन्फर्म करें
+                    {t('ai_confirm')}
                   </button>
                 </div>
               </div>
@@ -289,7 +291,7 @@ export default function AIOrderAssistant() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={listening ? 'बोलिए... (रुकने के लिए 🎤 दबाएं)' : transcribing ? 'आवाज़ समझी जा रही है...' : 'जैसे: 2 किलो आलू देना'}
+                placeholder={listening ? t('ai_ph_listening') : transcribing ? t('ai_ph_transcribing') : t('ai_ph_idle')}
                 disabled={transcribing}
                 className="flex-1 border-2 border-kisan-crate rounded-full px-4 py-2 text-sm focus:border-kisan focus:outline-none disabled:opacity-60"
               />

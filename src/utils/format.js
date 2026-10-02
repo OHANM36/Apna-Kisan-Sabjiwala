@@ -3,10 +3,10 @@ export function formatRupee(amount) {
   return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
-export function formatDate(dateStr) {
+export function formatDate(dateStr, lang = 'hi') {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  return d.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString(lang === 'en' ? 'en-IN' : 'hi-IN', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export const DELIVERY_TIME_SLOTS = [

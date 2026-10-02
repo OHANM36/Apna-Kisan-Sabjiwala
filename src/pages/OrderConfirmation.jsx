@@ -15,7 +15,7 @@ import { OrderConfirmationSkeleton } from '../components/Skeleton'
 export default function OrderConfirmation() {
   const { orderId } = useParams()
   const { settings } = useSettings()
-  const { t, tStatus } = useLanguage()
+  const { t, tStatus, tUnit, tTimeSlot, language } = useLanguage()
   const [order, setOrder] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -43,7 +43,7 @@ export default function OrderConfirmation() {
       if (data?.order && search.get('t')) saveMyOrder({ id: orderId, token, orderNumber: data.order.order_number })
       return data?.order || null
     } catch (e) {
-      if (!silent) setError(friendlyError(e))
+      if (!silent) setError(friendlyError(e, language))
       return null
     } finally {
       setLoading(false)
@@ -86,7 +86,7 @@ export default function OrderConfirmation() {
     <div className="min-h-screen"><Header />
       <div className="text-center py-16 px-6">
         <p>{error || t('order_not_found')}</p>
-        <Link to="/orders" className="btn-outline inline-block mt-4 px-5">मेरे ऑर्डर देखें</Link>
+        <Link to="/orders" className="btn-outline inline-block mt-4 px-5">{t('order_view_my_orders')}</Link>
       </div>
     </div>
   )
@@ -103,7 +103,7 @@ export default function OrderConfirmation() {
     ? cancelled
       ? { icon: '❌', text: tStatus('रद्द') }
       : { icon: '✅', text: t('order_cod_placed') }
-    : { icon: '⏳', text: 'ऑर्डर बन गया — भुगतान बाकी' }
+    : { icon: '⏳', text: t('order_pending_heading') }
   const whatsappLink = buildWhatsAppOrderLink({ order, items, businessWhatsapp: settings.business_whatsapp })
 
   return (
@@ -127,9 +127,9 @@ export default function OrderConfirmation() {
         )}
         {!cod && order.payment_status !== 'सफल' && order.order_status !== 'रद्द' && (
           <div className="card p-4 mb-4 border-2 border-orange-300">
-            <p className="text-sm font-bold text-orange-600 mb-2">भुगतान बाकी है</p>
+            <p className="text-sm font-bold text-orange-600 mb-2">{t('order_payment_due')}</p>
             <button onClick={retryPayment} disabled={paying} className="btn-primary w-full">
-              {paying ? 'प्रोसेस हो रहा है...' : `${formatRupee(order.total_amount)} अभी भुगतान करें`}
+              {paying ? t('checkout_processing') : t('order_pay_now').replace('{amount}', formatRupee(order.total_amount))}
             </button>
           </div>
         )}
@@ -160,7 +160,7 @@ export default function OrderConfirmation() {
             {items.map((i) => (
               <div key={i.id} className="flex justify-between text-sm items-start">
                 <div>
-                  <span className="text-gray-600">{i.vegetable_name} x {i.quantity} {i.unit}</span>
+                  <span className="text-gray-600">{i.vegetable_name} x {i.quantity} {tUnit(i.unit)}</span>
                   {i.seller_name && <p className="text-[11px] text-gray-400 font-semibold">🧑‍🌾 {i.seller_name}</p>}
                 </div>
                 <span className="font-semibold text-gray-800">{formatRupee(i.item_total)}</span>
@@ -179,7 +179,7 @@ export default function OrderConfirmation() {
           <h3 className="font-bold text-gray-700 text-sm mb-2">{t('order_delivery_address')}</h3>
           <p className="text-sm text-gray-600">{order.customer_name} • {order.customer_phone}</p>
           <p className="text-sm text-gray-600 mt-1">{order.full_address}{order.mohalla ? `, ${order.mohalla}` : ''}, {order.city} - {order.pincode}</p>
-          {order.delivery_date && <p className="text-sm text-gray-600 mt-1">{formatDate(order.delivery_date)} • {order.delivery_time_slot}</p>}
+          {order.delivery_date && <p className="text-sm text-gray-600 mt-1">{formatDate(order.delivery_date, language)} • {tTimeSlot(order.delivery_time_slot)}</p>}
           <p className={`text-sm font-bold mt-2 ${paid ? 'text-kisan' : 'text-orange-500'}`}>
             {t('order_payment_status')}:{' '}
             {cod

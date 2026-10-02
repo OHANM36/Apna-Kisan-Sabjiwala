@@ -1,3 +1,5 @@
+import { useLanguage } from '../context/LanguageContext'
+
 // स्केलेटन लोडिंग — डेटा आने तक पेज का ढाँचा दिखाता है (स्पिनर की जगह)
 // हल्का रखा गया है: सिर्फ़ CSS pulse, कोई भारी shimmer/gradient नहीं (सस्ते Android फ़ोन के लिए)
 
@@ -7,10 +9,11 @@ export function Bone({ className = '' }) {
 }
 
 /** पूरे स्केलेटन को लपेटता है: pulse एनिमेशन + स्क्रीन-रीडर के लिए "लोड हो रहा है" */
-export function SkeletonWrap({ children, className = '', label = 'लोड हो रहा है...' }) {
+export function SkeletonWrap({ children, className = '', label }) {
+  const { t } = useLanguage()
   return (
     <div role="status" aria-busy="true" aria-live="polite" className={`animate-pulse ${className}`}>
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{label ?? t('loading')}</span>
       {children}
     </div>
   )
@@ -348,9 +351,10 @@ export function DashboardSkeleton({ stages = true }) {
 
 /** लॉगिन-जाँच के दौरान पूरा एडमिन ढाँचा (साइडबार + कंटेंट) */
 export function AdminShellSkeleton() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-gray-50 md:flex" role="status" aria-busy="true">
-      <span className="sr-only">लोड हो रहा है...</span>
+      <span className="sr-only">{t('loading')}</span>
       <aside className="md:w-60 bg-kisan-dark md:min-h-screen">
         <div className="p-5 flex items-center gap-2 border-b border-white/10 animate-pulse">
           <div className="w-9 h-9 rounded-full bg-white/20 shrink-0" />
@@ -374,9 +378,10 @@ export function AdminShellSkeleton() {
 
 /** विक्रेता/डिलीवरी पैनल का ढाँचा (ऊपर हरी पट्टी + कंटेंट) */
 export function SimpleShellSkeleton() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-gray-50" role="status" aria-busy="true">
-      <span className="sr-only">लोड हो रहा है...</span>
+      <span className="sr-only">{t('loading')}</span>
       <div className="bg-kisan-dark p-4 flex items-center gap-2 animate-pulse">
         <div className="w-9 h-9 rounded-full bg-white/20 shrink-0" />
         <div className="flex flex-col gap-1.5">
