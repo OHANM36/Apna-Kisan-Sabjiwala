@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
 import VegetableCard from '../components/VegetableCard'
-import Loading from '../components/Loading'
+import { VendorDetailSkeleton } from '../components/Skeleton'
 
 export default function VendorDetail() {
   const { vendorId } = useParams()
@@ -46,7 +46,7 @@ export default function VendorDetail() {
     return (
       <div className="min-h-screen pb-24">
         <Header />
-        <Loading />
+        <VendorDetailSkeleton />
       </div>
     )
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { formatRupee } from '../utils/format'
-import Loading from '../components/Loading'
+import { TablePageSkeleton } from '../components/Skeleton'
 
 const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
 const EMPTY_FORM = { id: null, name: '', name_en: '', category_id: '', price: '', mrp: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध', price_tiers: [] }
@@ -136,7 +136,7 @@ export default function AdminVegetables() {
     loadData()
   }
 
-  if (loading) return <Loading />
+  if (loading) return <TablePageSkeleton cols={5} rows={6} />
 
   return (
     <div>

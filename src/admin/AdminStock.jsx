@@ -5,6 +5,7 @@ import { usePT } from '../pricing/strings'
 import { validateQuantity } from '../pricing/engine'
 import { istDate, stockAgeDays } from '../pricing/products'
 import { NumberInput, bigBtn } from '../pricing/ui/common'
+import { FormPageSkeleton } from '../components/Skeleton'
 
 /** मालिक + स्टाफ: मौजूदा स्टॉक मात्रा और स्टॉक कब आया (सिर्फ़ inventory; कीमत/लागत नहीं दिखती) */
 export default function AdminStock() {
@@ -55,7 +56,7 @@ export default function AdminStock() {
   }
 
   if (error) return <p className="text-red-600 p-4">{error}</p>
-  if (!veg) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (!veg) return <FormPageSkeleton fields={3} />
   return (
     <div className="max-w-2xl mx-auto pb-10">
       <h1 className="text-xl font-extrabold text-gray-800 mb-3">{pt('st_title')}</h1>

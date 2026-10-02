@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
-import Loading from '../components/Loading'
+import { VendorGridSkeleton } from '../components/Skeleton'
 
 export default function Vendors() {
   const [vendors, setVendors] = useState([])
@@ -32,7 +32,7 @@ export default function Vendors() {
         <p className="text-gray-500 text-sm mb-4">किसी विक्रेता पर टैप करके उसकी सब्ज़ियाँ देखें</p>
 
         {loading ? (
-          <Loading />
+          <VendorGridSkeleton />
         ) : vendors.length === 0 ? (
           <div className="text-center py-16">
             <span className="text-6xl block mb-3">🧑‍🌾</span>

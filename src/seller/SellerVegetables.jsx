@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useSellerAuth } from '../context/SellerAuthContext'
 import { formatRupee } from '../utils/format'
-import Loading from '../components/Loading'
+import { TablePageSkeleton } from '../components/Skeleton'
 
 const UNITS = ['किलो', 'आधा किलो', 'ग्राम', 'गड्डी', 'नग']
 const EMPTY_FORM = { id: null, name: '', category_id: '', price: '', unit: 'किलो', emoji: '🥬', image_url: '', stock_status: 'उपलब्ध' }
@@ -103,7 +103,7 @@ export default function SellerVegetables() {
     loadData()
   }
 
-  if (loading) return <Loading />
+  if (loading) return <TablePageSkeleton cols={5} rows={5} />
 
   return (
     <div>

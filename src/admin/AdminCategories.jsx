@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import Loading from '../components/Loading'
+import { TablePageSkeleton } from '../components/Skeleton'
 
 const EMPTY_FORM = { id: null, name: '', name_en: '', slug: '', display_order: 0, is_active: true }
 
@@ -101,7 +101,7 @@ export default function AdminCategories() {
     loadCategories()
   }
 
-  if (loading) return <Loading />
+  if (loading) return <TablePageSkeleton cols={5} rows={5} />
 
   return (
     <div>

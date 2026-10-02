@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useSellerAuth } from '../context/SellerAuthContext'
 import { formatRupee } from '../utils/format'
-import Loading from '../components/Loading'
+import { StatsPageSkeleton } from '../components/Skeleton'
 
 export default function SellerDashboard() {
   const { session } = useSellerAuth()
@@ -43,7 +43,7 @@ export default function SellerDashboard() {
     setLoading(false)
   }
 
-  if (loading || !stats) return <Loading />
+  if (loading || !stats) return <StatsPageSkeleton count={4} />
 
   const cards = [
     { label: 'आज की बिक्री', value: formatRupee(stats.todaySales), color: 'bg-kisan' },

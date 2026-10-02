@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
 import { formatRupee } from '../utils/format'
-import Loading from '../components/Loading'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function AdminBulkEdit() {
   const [vegetables, setVegetables] = useState([])
@@ -84,7 +84,7 @@ export default function AdminBulkEdit() {
 
   const filtered = vegetables.filter((v) => v.name.toLowerCase().includes(search.toLowerCase()))
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton toolbar count={6} />
 
   return (
     <div>

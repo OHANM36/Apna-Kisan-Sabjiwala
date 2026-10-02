@@ -14,6 +14,7 @@ function VegetableCard({ veg }) {
   const unavailable = veg.stock_status === 'अनुपलब्ध'
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   const tiers = useMemo(
     () => (Array.isArray(veg.price_tiers) && veg.price_tiers.length > 0 ? veg.price_tiers : null),
@@ -68,14 +69,21 @@ function VegetableCard({ veg }) {
 
   return (
     <div className="card overflow-hidden flex flex-col">
-      <div className="relative aspect-square bg-kisan-crate/40 flex items-center justify-center">
+      <div className={`relative aspect-square bg-kisan-crate/40 flex items-center justify-center ${veg.image_url && !imgLoaded ? 'animate-pulse bg-gray-200' : ''}`}>
         {hasDiscount && (
           <span className="absolute top-1.5 left-1.5 bg-kisan-tomato text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-tight z-10">
             {discountPercent}% {t('veg_off')}
           </span>
         )}
         {veg.image_url ? (
-          <img src={veg.image_url} alt={tName(veg)} className="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={veg.image_url}
+            alt={tName(veg)}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgLoaded(true)}
+          />
         ) : (
           <VeggieCharacter name={veg.name} className="w-16 h-16" />
         )}

@@ -14,6 +14,7 @@ import { tierKeyFromLineId } from '../pricing/cartSync'
 import { safeGet, safeSet, safeRemove, safeJson } from '../utils/safeStorage'
 import { saveMyOrder } from '../utils/myOrders'
 import { friendlyError, withTimeout } from '../utils/errors'
+import { FormSkeleton } from '../components/Skeleton'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
 
@@ -267,6 +268,17 @@ export default function Checkout() {
       }
       setSubmitting(false)
     }
+  }
+
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen pb-40">
+        <Header />
+        <div className="px-4 py-4">
+          <FormSkeleton fields={5} />
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -1,14 +1,14 @@
 import { Suspense } from 'react'
-import Loading from '../components/Loading'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import logo from '../assets/logo.png'
+import { SimpleShellSkeleton, PageSkeleton } from '../components/Skeleton'
 
 export default function DeliveryLayout() {
   const { deliveryBoy, isLoggedIn, loading, logout } = useDeliveryAuth()
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">लोड हो रहा है...</div>
+    return <SimpleShellSkeleton />
   }
 
   if (!isLoggedIn) {
@@ -29,7 +29,7 @@ export default function DeliveryLayout() {
       </header>
 
       <main className="p-4">
-        <Suspense fallback={<Loading />}><Outlet /></Suspense>
+        <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
       </main>
     </div>
   )

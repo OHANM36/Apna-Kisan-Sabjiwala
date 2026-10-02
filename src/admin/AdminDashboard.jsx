@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { formatRupee, ORDER_STAGES, stageOf } from '../utils/format'
-import Loading from '../components/Loading'
+import { DashboardSkeleton } from '../components/Skeleton'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null)
@@ -39,7 +39,7 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  if (loading) return <Loading />
+  if (loading) return <DashboardSkeleton />
 
   const cards = [
     { label: 'आज की बिक्री', value: formatRupee(stats.todaySales), color: 'bg-kisan' },

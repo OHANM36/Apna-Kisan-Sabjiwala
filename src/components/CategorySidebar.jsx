@@ -1,4 +1,5 @@
 import { useLanguage } from '../context/LanguageContext'
+import { CategorySidebarSkeleton } from './Skeleton'
 
 const CATEGORY_EMOJI = {
   'sabhi-sabjiyan': '🧺',
@@ -11,7 +12,7 @@ const CATEGORY_EMOJI = {
   'anya-samaan': '🧄',
 }
 
-export default function CategorySidebar({ categories, activeSlug, onSelect }) {
+export default function CategorySidebar({ categories, activeSlug, onSelect, loading = false }) {
   const { t, tName } = useLanguage()
   return (
     <aside className="w-[76px] shrink-0 bg-kisan-crate/30 border-r border-kisan-crate h-full overflow-y-auto overscroll-contain">
@@ -28,6 +29,8 @@ export default function CategorySidebar({ categories, activeSlug, onSelect }) {
           {t('category_all')}
         </span>
       </button>
+
+      {loading && categories.length === 0 && <CategorySidebarSkeleton />}
 
       {categories.map((cat) => {
         const isActive = activeSlug === cat.slug

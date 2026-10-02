@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
-import Loading from '../components/Loading'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
@@ -9,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { usePT } from '../pricing/strings'
 import { PendingSyncBanner } from '../pricing/ui/common'
 import logo from '../assets/logo.png'
+import { AdminShellSkeleton, PageSkeleton } from '../components/Skeleton'
 
 const links = [
   { to: '/admin', label: 'डैशबोर्ड', icon: '📊', end: true },
@@ -96,7 +96,7 @@ export default function AdminLayout() {
   }, [session, isAdmin, pushToast])
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">लोड हो रहा है...</div>
+    return <AdminShellSkeleton />
   }
 
   if (!session || !isAdmin) {
@@ -174,7 +174,7 @@ export default function AdminLayout() {
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
         {isOwner && <PendingSyncBanner />}
-        <Suspense fallback={<Loading />}><Outlet /></Suspense>
+        <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
       </main>
     </div>
   )

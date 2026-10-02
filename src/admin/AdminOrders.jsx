@@ -4,9 +4,9 @@ import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, statusStepsFor, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
-import Loading from '../components/Loading'
 import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
 import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 const KINDS = ['सभी', 'AI सहायक', 'COD']
 
@@ -72,7 +72,7 @@ export default function AdminOrders() {
       active ? 'bg-kisan text-white border-kisan' : 'bg-white text-gray-500 border-gray-200'
     }`
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton chips={2} count={4} />
 
   return (
     <div>

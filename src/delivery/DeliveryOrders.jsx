@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import { formatRupee, formatDate } from '../utils/format'
-import Loading from '../components/Loading'
 import { isCod, isPaid } from '../utils/paymentMethods'
+import { SkeletonWrap, ListCardsSkeleton } from '../components/Skeleton'
 
 const TABS = [
   { key: 'available', label: 'उपलब्ध ऑर्डर' },
@@ -111,7 +111,7 @@ export default function DeliveryOrders() {
       {notice && <p className="bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3 mb-3">{notice}</p>}
 
       {loading ? (
-        <Loading />
+        <SkeletonWrap><ListCardsSkeleton count={3} /></SkeletonWrap>
       ) : (
         <div className="flex flex-col gap-3">
           {orders.map((o) => (

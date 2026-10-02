@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { formatDate } from '../utils/format'
-import Loading from '../components/Loading'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function AdminSellers() {
   const [sellers, setSellers] = useState([])
@@ -59,7 +59,7 @@ export default function AdminSellers() {
     return true
   })
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton chips={1} count={4} />
 
   return (
     <div>

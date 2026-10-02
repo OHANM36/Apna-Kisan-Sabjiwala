@@ -14,6 +14,7 @@ import {
   purchaseUnitFromStoreUnit,
 } from '../pricing/products'
 import { Delta, MoneyInput, OwnerOnly, bigBtn, rupee } from '../pricing/ui/common'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 const UNIT_SHORT = { kg: 'kg', '500g': '500g', '250g': '250g', '200g': '200g', '100g': '100g', piece: 'pc', bunch: 'bunch' }
 
@@ -177,7 +178,7 @@ function TodaysPrices() {
         </button>
       </div>
     )
-  if (!bundle) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (!bundle) return <ListPageSkeleton withButton count={6} />
 
   return (
     <div className="pb-28 max-w-2xl mx-auto">

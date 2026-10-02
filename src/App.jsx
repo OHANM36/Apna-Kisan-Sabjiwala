@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
-import Loading from './components/Loading'
 import Home from './pages/Home'
 import BottomNav from './components/BottomNav'
 import FloatingCallButton from './components/FloatingCallButton'
@@ -12,6 +11,7 @@ import { AdminAuthProvider } from './context/AdminAuthContext'
 import { SellerAuthProvider } from './context/SellerAuthContext'
 
 import { DeliveryAuthProvider } from './context/DeliveryAuthContext'
+import RouteFallback from './components/RouteFallback'
 
 // हर पेज अलग फ़ाइल (chunk) में — ग्राहक को एडमिन/सेलर/डिलीवरी का कोड डाउनलोड नहीं करना पड़ता
 const Categories = lazy(() => import('./pages/Categories'))
@@ -73,7 +73,7 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* ग्राहक ऐप */}
         <Route path="/" element={<Home />} />

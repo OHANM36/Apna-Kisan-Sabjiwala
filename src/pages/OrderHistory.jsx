@@ -7,8 +7,8 @@ import { friendlyError, withTimeout } from '../utils/errors'
 import { getMyOrders, saveMyOrder } from '../utils/myOrders'
 import { safeJson } from '../utils/safeStorage'
 import Header from '../components/Header'
-import Loading from '../components/Loading'
 import { paymentText } from '../utils/paymentMethods'
+import { OrderCardListSkeleton } from '../components/Skeleton'
 
 const STORAGE_KEY_CUSTOMER = 'aks_customer_v1'
 
@@ -107,7 +107,7 @@ export default function OrderHistory() {
         </div>
 
         {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-xl px-4 py-3 mb-3">{error}</div>}
-        {loading && <Loading text="ऑर्डर लोड हो रहे हैं..." />}
+        {loading && <OrderCardListSkeleton />}
 
         {!loading && orders && orders.length > 0 && (
           <div className="flex flex-col gap-3">

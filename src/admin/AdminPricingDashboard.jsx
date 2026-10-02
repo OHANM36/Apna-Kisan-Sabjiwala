@@ -7,6 +7,7 @@ import { computeAlerts, reviewCount } from '../pricing/alerts'
 import { round2 } from '../pricing/engine'
 import { istDate, resolveParams, daysSince } from '../pricing/products'
 import { OwnerOnly, rupee } from '../pricing/ui/common'
+import { DashboardSkeleton } from '../components/Skeleton'
 
 export default function AdminPricingDashboard() {
   return (
@@ -97,7 +98,7 @@ function Dashboard() {
         </button>
       </div>
     )
-  if (!bundle || !fin || !view) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (!bundle || !fin || !view) return <DashboardSkeleton stages={false} />
 
   const grossMargin = round2(fin.itemsRevenue - fin.productCost)
   const avgMargin = fin.revenue > 0 ? round2((fin.contribution / fin.revenue) * 100) : null

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useSellerAuth } from '../context/SellerAuthContext'
 import { formatRupee, formatDate } from '../utils/format'
-import Loading from '../components/Loading'
 import { isPaid, paymentText } from '../utils/paymentMethods'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function SellerOrders() {
   const { session } = useSellerAuth()
@@ -32,7 +32,7 @@ export default function SellerOrders() {
     setLoading(false)
   }
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton count={3} />
 
   return (
     <div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { formatDate } from '../utils/format'
-import Loading from '../components/Loading'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 const emptyForm = { id: null, full_name: '', phone: '', pin: '', is_active: true }
 
@@ -89,7 +89,7 @@ export default function AdminDeliveryBoys() {
     loadBoys()
   }
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton withButton count={3} />
 
   return (
     <div>

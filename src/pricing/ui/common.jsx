@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { usePT } from '../strings'
 import { getPending, syncPending, clearPending } from '../api'
+import { PageSkeleton } from '../../components/Skeleton'
 
 export const rupee = (v, digits = 2) => {
   const n = Number(v)
@@ -15,7 +16,7 @@ export const rupee = (v, digits = 2) => {
 export function OwnerOnly({ children }) {
   const { isOwner, loading } = useAdminAuth()
   const pt = usePT()
-  if (loading) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (loading) return <PageSkeleton />
   if (!isOwner) return <Navigate to="/admin" replace state={{ ownerOnly: true }} />
   return children
 }

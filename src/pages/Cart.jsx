@@ -6,10 +6,11 @@ import { useLanguage } from '../context/LanguageContext'
 import Header from '../components/Header'
 import { formatRupee } from '../utils/format'
 import { calculateDeliveryFee, nextDeliveryBenefit, minOrderShortfall } from '../pricing/delivery'
+import { CartSkeleton } from '../components/Skeleton'
 
 export default function Cart() {
   const { items, increaseQty, decreaseQty, removeFromCart, subtotal, syncPrices } = useCart()
-  const { settings, deliveryRules } = useSettings()
+  const { settings, deliveryRules, loading: settingsLoading } = useSettings()
   const { t } = useLanguage()
   const navigate = useNavigate()
 
@@ -34,6 +35,16 @@ export default function Cart() {
   const { fee: deliveryFee } = calculateDeliveryFee(subtotal, deliveryRules, settings)
   const benefit = !belowMin ? nextDeliveryBenefit(subtotal, deliveryRules, settings) : null
   const total = subtotal + deliveryFee
+
+  // सेटिंग्स आने तक पुराने डिफ़ॉल्ट से बिल न दिखे — पहले स्केलेटन
+  if (settingsLoading && items.length > 0) {
+    return (
+      <div className="min-h-screen pb-24">
+        <Header />
+        <CartSkeleton />
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (

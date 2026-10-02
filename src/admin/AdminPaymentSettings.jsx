@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { useSettings } from '../context/SettingsContext'
-import Loading from '../components/Loading'
 import { formatRupee } from '../utils/format'
+import { SettingsPageSkeleton } from '../components/Skeleton'
 
 const MAX_COD_LIMIT = 100000
 
@@ -116,7 +116,7 @@ export default function AdminPaymentSettings() {
     save({ cod_max_order_value: Math.round(n * 100) / 100 }, `✅ COD अब ${formatRupee(n)} तक के ऑर्डर पर चालू रहेगा`)
   }
 
-  if (loading) return <Loading />
+  if (loading) return <SettingsPageSkeleton rows={2} />
 
   return (
     <div className="max-w-xl">

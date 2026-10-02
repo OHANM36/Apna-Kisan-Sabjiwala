@@ -4,12 +4,12 @@ import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
 import CategorySidebar from '../components/CategorySidebar'
 import VegetableCard from '../components/VegetableCard'
-import Loading from '../components/Loading'
 import { useSettings } from '../context/SettingsContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
 import { matchesVegetableSearch } from '../utils/searchMatch'
 import { cachePublished, readPublishedCache } from '../pricing/priceCache'
+import { VegetableGridSkeleton } from '../components/Skeleton'
 
 export default function Home() {
   const [vegetables, setVegetables] = useState([])
@@ -90,7 +90,7 @@ export default function Home() {
 
       {/* बाईं तरफ श्रेणी sidebar (स्थिर/freeze) + दाईं तरफ मुख्य कंटेंट (सिर्फ यही स्क्रॉल होगा) */}
       <div className="flex items-stretch flex-1 min-h-0">
-        <CategorySidebar categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} />
+        <CategorySidebar categories={categories} activeSlug={activeCategory} onSelect={handleCategorySelect} loading={loading} />
 
         <div className="flex-1 min-w-0 overflow-y-auto pb-24">
           {offers.length > 0 && (
@@ -133,7 +133,7 @@ export default function Home() {
             </h2>
 
             {loading ? (
-              <Loading text={t('home_loading_vegetables')} />
+              <VegetableGridSkeleton count={8} label={t('home_loading_vegetables')} />
             ) : filtered.length === 0 ? (
               <div className="text-center py-16">
                 <p className="text-5xl mb-3">🔍</p>

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
-import Loading from '../components/Loading'
 import { useLanguage } from '../context/LanguageContext'
+import { CategoryGridSkeleton } from '../components/Skeleton'
 
 const CATEGORY_EMOJI = {
   'sabhi-sabjiyan': '🧺',
@@ -40,7 +40,7 @@ export default function Categories() {
       <div className="px-4 py-4 animate-fade-slide-in">
         <h2 className="font-bold text-gray-800 text-lg mb-4">{t('categories_page_title')}</h2>
         {loading ? (
-          <Loading />
+          <CategoryGridSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {categories.map((cat) => (

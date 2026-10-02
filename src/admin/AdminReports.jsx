@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { formatRupee } from '../utils/format'
-import Loading from '../components/Loading'
+import { ReportsSkeleton } from '../components/Skeleton'
 
 export default function AdminReports() {
   const [loading, setLoading] = useState(true)
@@ -56,7 +56,7 @@ export default function AdminReports() {
     setLoading(false)
   }
 
-  if (loading) return <Loading />
+  if (loading) return <ReportsSkeleton />
 
   const cards = [
     { label: 'आज की बिक्री', value: formatRupee(report.todaySales) },

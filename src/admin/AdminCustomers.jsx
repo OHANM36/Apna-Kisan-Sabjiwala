@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate } from '../utils/format'
-import Loading from '../components/Loading'
+import { ListPageSkeleton } from '../components/Skeleton'
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([])
@@ -41,7 +41,7 @@ export default function AdminCustomers() {
     (c) => c.full_name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
   )
 
-  if (loading) return <Loading />
+  if (loading) return <ListPageSkeleton search count={5} />
 
   return (
     <div>

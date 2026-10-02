@@ -17,6 +17,7 @@ import {
 import { computeAlerts } from '../pricing/alerts'
 import PriceBreakdown from '../pricing/ui/PriceBreakdown'
 import { Field, MoneyInput, NumberInput, OwnerOnly, bigBtn, inputCls, rupee } from '../pricing/ui/common'
+import { ListPageSkeleton, ListCardsSkeleton, SkeletonWrap } from '../components/Skeleton'
 
 const PACKS = ['500g', '250g', '200g', '100g']
 const numOrNull = (s) => (s === '' || s === null || s === undefined ? null : Number(s))
@@ -85,7 +86,7 @@ function ProductPricing() {
         </button>
       </div>
     )
-  if (!bundle) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (!bundle) return <ListPageSkeleton withButton count={5} />
 
   const filters = [
     ['all', 'pp_filter_all'],
@@ -535,7 +536,7 @@ function History({ vegId }) {
         ))}
       </div>
       {err && <p className="text-red-600 text-sm font-semibold">{err}</p>}
-      {!rows && !err && <p className="text-gray-400">{pt('loading')}</p>}
+      {!rows && !err && <SkeletonWrap><ListCardsSkeleton count={3} /></SkeletonWrap>}
       {rows && rows.length === 0 && <p className="text-gray-400 text-center py-6">{pt('pp_no_history')}</p>}
       <ul className="space-y-2">
         {(rows || []).map((h) => (

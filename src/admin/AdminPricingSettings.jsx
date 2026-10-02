@@ -7,6 +7,7 @@ import { ROUNDING_MODES, resolveSettings } from '../pricing/engine'
 import { settingsToRow } from '../pricing/products'
 import { validateDeliveryRules } from '../pricing/delivery'
 import { Field, NumberInput, OwnerOnly, bigBtn, inputCls } from '../pricing/ui/common'
+import { SettingsPageSkeleton } from '../components/Skeleton'
 
 const RULE_PRESETS = {
   regular: { wastage: 4, margin: 15 },
@@ -223,7 +224,7 @@ function PricingSettings() {
         </button>
       </div>
     )
-  if (!loaded || !s) return <p className="text-gray-500 p-4">{pt('loading')}</p>
+  if (!loaded || !s) return <SettingsPageSkeleton rows={4} />
 
   // कंपोनेंट नहीं, सीधा JSX लौटाने वाला हेल्पर — वरना हर कीस्ट्रोक पर इनपुट दोबारा बनकर फ़ोकस खो देता
   const N = ({ k, label, hint }) => (

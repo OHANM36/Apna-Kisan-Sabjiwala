@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import Loading from '../components/Loading'
+import { FormPageSkeleton } from '../components/Skeleton'
 
 export default function AdminWelcomePopup() {
   const [form, setForm] = useState(null)
@@ -61,7 +61,7 @@ export default function AdminWelcomePopup() {
     setSavedMsg('✅ सेव हो गया — ग्राहकों को अगली बार ऐप खोलने पर नया संदेश दिखेगा')
   }
 
-  if (loading || !form) return <Loading />
+  if (loading || !form) return <FormPageSkeleton fields={4} />
 
   return (
     <div>

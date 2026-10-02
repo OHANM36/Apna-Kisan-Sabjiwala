@@ -5,12 +5,12 @@ import { useSettings } from '../context/SettingsContext'
 import { buildWhatsAppOrderLink } from '../utils/whatsapp'
 import { formatRupee, formatDate, statusStepsFor } from '../utils/format'
 import Header from '../components/Header'
-import Loading from '../components/Loading'
 import { getOrderToken, saveMyOrder } from '../utils/myOrders'
 import { startOnlinePayment } from '../utils/payment'
 import { friendlyError, withTimeout } from '../utils/errors'
 import { useLanguage } from '../context/LanguageContext'
 import { isCod, isPaid } from '../utils/paymentMethods'
+import { OrderConfirmationSkeleton } from '../components/Skeleton'
 
 export default function OrderConfirmation() {
   const { orderId } = useParams()
@@ -81,7 +81,7 @@ export default function OrderConfirmation() {
     })
   }
 
-  if (loading) return <div className="min-h-screen"><Header /><Loading /></div>
+  if (loading) return <div className="min-h-screen"><Header /><OrderConfirmationSkeleton /></div>
   if (!order) return (
     <div className="min-h-screen"><Header />
       <div className="text-center py-16 px-6">
