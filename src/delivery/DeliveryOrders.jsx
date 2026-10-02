@@ -30,6 +30,25 @@ function shortDate(d) {
   return new Date(d).toLocaleDateString('hi-IN', { day: 'numeric', month: 'long' })
 }
 
+// ऑर्डर कब लगा: "2 अक्टूबर, 1:45 pm" (भारतीय समय)
+function orderPlacedText(d) {
+  if (!d) return ''
+  const dt = new Date(d)
+  const time = dt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
+  const day = dt.toLocaleDateString('hi-IN', { day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata' })
+  return `${day}, ${time}`
+}
+
+// "25 मिनट पहले" / "2 घंटे पहले" / "3 दिन पहले"
+function agoText(d) {
+  if (!d) return ''
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 60000))
+  if (mins < 1) return 'अभी'
+  if (mins < 60) return `${mins} मिनट पहले`
+  if (mins < 1440) return `${Math.floor(mins / 60)} घंटे पहले`
+  return `${Math.floor(mins / 1440)} दिन पहले`
+}
+
 function mapsHref(o) {
   return o.latitude && o.longitude
     ? `https://www.google.com/maps?q=${o.latitude},${o.longitude}`
@@ -92,7 +111,8 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-bold text-[16px] leading-tight text-gray-900">{shortNumber(o.order_number)}</p>
-          <p className="text-[13px] text-gray-500 mt-1">{shortDate(o.created_at)} • {o.delivery_time_slot}</p>
+          <p className="text-[14px] font-semibold text-gray-700 mt-1">🕒 डिलीवरी: {o.delivery_time_slot}</p>
+          <p className="text-[12px] text-gray-500 mt-0.5">ऑर्डर: {orderPlacedText(o.created_at)} • {agoText(o.created_at)}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="font-bold text-[20px] leading-tight text-gray-900">{formatRupee(o.total_amount)}</p>
@@ -170,7 +190,8 @@ function DoneCard({ o }) {
       <div className="min-w-0">
         <p className="font-bold text-[16px] text-gray-900">{shortNumber(o.order_number)}</p>
         <p className="text-[14px] text-gray-700 truncate">{o.customer_name}</p>
-        <p className="text-[13px] font-semibold text-green-700 mt-0.5">✓ डिलीवर हुआ • {shortDate(o.created_at)}</p>
+        <p className="text-[13px] font-semibold text-green-700 mt-0.5">✓ डिलीवर हुआ • स्लॉट: {o.delivery_time_slot}</p>
+        <p className="text-[12px] text-gray-500 mt-0.5">ऑर्डर: {orderPlacedText(o.created_at)}</p>
       </div>
       <p className="font-bold text-[18px] text-gray-900 shrink-0">{formatRupee(o.total_amount)}</p>
     </article>
