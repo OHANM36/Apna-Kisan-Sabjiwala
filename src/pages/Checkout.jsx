@@ -40,7 +40,7 @@ export default function Checkout() {
     mohalla: savedCustomer.mohalla || '',
     city: savedCustomer.city || 'Bhopal',
     pincode: savedCustomer.pincode || '',
-    deliveryDate: '',
+    deliveryDate: localDate(0), // आज की तारीख अपने-आप भरी रहे (ग्राहक बदल सकता है)
     deliveryTime: DELIVERY_TIME_SLOTS[0],
     notes: '',
     latitude: null,
