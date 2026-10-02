@@ -121,7 +121,7 @@ export default function OrderHistory() {
                   <span className="text-xs font-bold bg-kisan/10 text-kisan px-2 py-1 rounded-full">{order.order_status}</span>
                 </div>
                 <p className="text-xs text-gray-500 mb-2">
-                  {order.order_items.length} वस्तुएँ • {formatRupee(order.total_amount)} • भुगतान: {paymentText(order)}
+                  {order.order_items.length} वस्तुएँ • {formatRupee(order.total_amount)} • भुगतान: {paymentText(order, { forCustomer: true })}
                 </p>
                 <div className="flex gap-2 mt-2">
                   <Link to={`/order-confirmation/${order.id}${order.access_token ? `?t=${order.access_token}` : ''}`} className="flex-1 text-center text-xs font-bold border-2 border-kisan text-kisan py-2 rounded-lg">

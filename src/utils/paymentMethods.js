@@ -33,9 +33,16 @@ export function isPaid(order) {
   return order?.payment_status === 'सफल'
 }
 
-// हिंदी-पैनलों (एडमिन/सेलर/व्हाट्सऐप/मेरे ऑर्डर) में भुगतान की स्थिति का टेक्स्ट
-export function paymentText(order) {
-  if (isCodOnline(order)) return isPaid(order) ? 'ऑनलाइन (UPI) भुगतान मिल गया' : 'डिलीवरी पर ऑनलाइन भुगतान (UPI) — डिलीवरी पर लेना है'
-  if (isCod(order)) return isPaid(order) ? 'कैश मिल गया' : 'कैश ऑन डिलीवरी (डिलीवरी पर लेना है)'
+// भुगतान की स्थिति का हिंदी टेक्स्ट। forCustomer=true (ग्राहक का "मेरे ऑर्डर") में ग्राहक की नज़र से:
+// पैसा "देना है" / "दे दिया"; बाकी पैनलों (एडमिन/सेलर/व्हाट्सऐप) में दुकान की नज़र से "लेना है" / "मिल गया"।
+export function paymentText(order, { forCustomer = false } = {}) {
+  if (isCodOnline(order)) {
+    if (isPaid(order)) return forCustomer ? 'ऑनलाइन (UPI) भुगतान हो गया' : 'ऑनलाइन (UPI) भुगतान मिल गया'
+    return forCustomer ? 'डिलीवरी पर ऑनलाइन भुगतान (UPI) — डिलीवरी पर देना है' : 'डिलीवरी पर ऑनलाइन भुगतान (UPI) — डिलीवरी पर लेना है'
+  }
+  if (isCod(order)) {
+    if (isPaid(order)) return forCustomer ? 'कैश दे दिया' : 'कैश मिल गया'
+    return forCustomer ? 'कैश ऑन डिलीवरी (डिलीवरी पर देना है)' : 'कैश ऑन डिलीवरी (डिलीवरी पर लेना है)'
+  }
   return order?.payment_status ?? ''
 }
