@@ -67,3 +67,42 @@ html, body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ───────────── डिलीवरी पैनल (मोबाइल-फ़र्स्ट, हल्का UI) ─────────────
+   सब कुछ .dp के अंदर सीमित है, इसलिए बाकी ऐप की स्टाइल पर कोई असर नहीं। */
+.dp {
+  --dp-green: #166534;
+  --dp-green-soft: #ecfdf3;
+  --dp-line: #e5e7eb;
+  --dp-amber-bg: #fffbeb;
+  --dp-amber-line: #fde68a;
+  --dp-amber-ink: #92400e;
+  background: #f6f7f8;
+  color: #111827;
+  font-family: 'Mukta', 'Noto Sans Devanagari', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+.dp-wrap { width: 100%; max-width: 640px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.dp-appbar { position: sticky; top: 0; z-index: 30; background: #fff; border-bottom: 1px solid var(--dp-line); }
+.dp-iconbtn { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: #4b5563; transition: background-color .15s; }
+.dp-iconbtn:active { background: #f3f4f6; }
+.dp-tabs-bar { position: sticky; top: 64px; z-index: 20; background: #f6f7f8; padding: 8px 0 12px; }
+.dp-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: #e9ebee; border-radius: 14px; }
+.dp-seg button { min-height: 44px; border-radius: 11px; font-size: 14px; font-weight: 600; color: #4b5563; transition: background-color .18s, color .18s; padding: 0 4px; line-height: 1.15; }
+.dp-seg button[aria-selected='true'] { background: var(--dp-green); color: #fff; }
+.dp-card { background: #fff; border: 1px solid var(--dp-line); border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+.dp-stat { background: #fff; border: 1px solid var(--dp-line); border-radius: 14px; padding: 10px 12px; min-width: 0; }
+.dp-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; line-height: 1.4; white-space: nowrap; }
+.dp-btn { min-height: 48px; border-radius: 12px; font-size: 15px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; transition: background-color .15s, transform .15s, opacity .15s; width: 100%; }
+.dp-btn:active:not(:disabled) { transform: scale(.98); }
+.dp-btn:disabled { opacity: .55; }
+.dp-btn-outline { border: 1.5px solid var(--dp-green); color: var(--dp-green); background: #fff; }
+.dp-btn-outline:active:not(:disabled) { background: var(--dp-green-soft); }
+.dp-btn-primary { min-height: 52px; border-radius: 16px; background: var(--dp-green); color: #fff; }
+.dp-btn-amber { border: 1.5px solid #d97706; color: var(--dp-amber-ink); background: #fff; }
+.dp-sheet-back { position: fixed; inset: 0; z-index: 50; background: rgba(17, 24, 39, .45); display: flex; align-items: flex-end; justify-content: center; animation: dpFade .18s ease-out; }
+.dp-sheet { width: 100%; max-width: 480px; background: #fff; border-radius: 22px 22px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px)); max-height: 92vh; overflow-y: auto; animation: dpUp .2s ease-out; }
+@media (min-width: 640px) { .dp-sheet-back { align-items: center; } .dp-sheet { border-radius: 22px; } }
+.dp-toast { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60; max-width: 420px; margin: 0 auto; border-radius: 14px; padding: 12px 16px; font-size: 14px; font-weight: 600; color: #fff; animation: dpFade .18s ease-out; }
+@keyframes dpFade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes dpUp { from { transform: translateY(16px); opacity: .6 } to { transform: none; opacity: 1 } }
