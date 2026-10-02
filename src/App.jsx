@@ -39,6 +39,7 @@ const AdminProductPricing = lazy(() => import('./admin/AdminProductPricing'))
 const AdminPricingSettings = lazy(() => import('./admin/AdminPricingSettings'))
 const AdminPricingDashboard = lazy(() => import('./admin/AdminPricingDashboard'))
 const AdminStock = lazy(() => import('./admin/AdminStock'))
+const AdminOffers = lazy(() => import('./admin/AdminOffers'))
 const AdminPaymentSettings = lazy(() => import('./admin/AdminPaymentSettings'))
 const SellerSignup = lazy(() => import('./seller/SellerSignup'))
 const SellerLogin = lazy(() => import('./seller/SellerLogin'))
@@ -109,6 +110,7 @@ export default function App() {
                   <Route path="payment-settings" element={<AdminPaymentSettings />} />
                   <Route path="pricing-dashboard" element={<AdminPricingDashboard />} />
                   <Route path="stock" element={<AdminStock />} />
+                  <Route path="offers" element={<AdminOffers />} />
                 </Route>
               </Routes>
             </AdminAuthProvider>

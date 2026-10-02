@@ -23,6 +23,7 @@ const links = [
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
   { to: '/admin/delivery-boys', label: 'डिलीवरी बॉय', icon: '🛵' },
   { to: '/admin/customers', label: 'ग्राहक', icon: '👥' },
+  { to: '/admin/offers', label: 'कूपन / ऑफर', icon: '🎟️', ownerOnly: true },
   { to: '/admin/reports', label: 'रिपोर्ट', icon: '📈' },
 ]
 
