@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import Loading from '../components/Loading'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
-import { playNewOrderSound, playStatusChangeSound } from '../utils/sounds'
+import { playNewOrderSound, playStatusChangeSound } from '../utils/soundsLazy'
 import AdminToastList from '../components/AdminToastList'
 import { useLanguage } from '../context/LanguageContext'
 import { usePT } from '../pricing/strings'
@@ -173,7 +174,7 @@ export default function AdminLayout() {
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
         {isOwner && <PendingSyncBanner />}
-        <Outlet />
+        <Suspense fallback={<Loading />}><Outlet /></Suspense>
       </main>
     </div>
   )

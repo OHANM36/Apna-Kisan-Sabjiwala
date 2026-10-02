@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { playStatusChangeSound } from '../utils/sounds'
+import { playStatusChangeSound } from '../utils/soundsLazy'
 import { getMyOrders } from '../utils/myOrders'
 
 const POLL_MS = 30000

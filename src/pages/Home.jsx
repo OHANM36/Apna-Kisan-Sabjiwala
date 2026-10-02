@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Header from '../components/Header'
@@ -20,6 +20,7 @@ export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || null)
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search) // टाइपिंग तुरंत चले, भारी सूची पीछे अपडेट हो
   const { settings } = useSettings()
   const { t } = useLanguage()
 
@@ -68,10 +69,10 @@ export default function Home() {
   const filtered = useMemo(() => {
     return vegetables.filter((v) => {
       const matchesCategory = !activeCategory || v.categories?.slug === activeCategory
-      const matchesSearch = matchesVegetableSearch(v.name, v.name_en, search)
+      const matchesSearch = matchesVegetableSearch(v.name, v.name_en, deferredSearch)
       return matchesCategory && matchesSearch
     })
-  }, [vegetables, activeCategory, search])
+  }, [vegetables, activeCategory, deferredSearch])
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">

@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import Loading from '../components/Loading'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import logo from '../assets/logo.png'
@@ -27,7 +29,7 @@ export default function DeliveryLayout() {
       </header>
 
       <main className="p-4">
-        <Outlet />
+        <Suspense fallback={<Loading />}><Outlet /></Suspense>
       </main>
     </div>
   )

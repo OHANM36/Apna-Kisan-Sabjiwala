@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../supabaseClient'
-import { syncCartWithCatalog } from '../pricing/cartSync'
 import { safeGet, safeSet } from '../utils/safeStorage'
 
 const CartContext = createContext(null)
@@ -98,6 +97,7 @@ export function CartProvider({ children }) {
     const ids = [...new Set(current.map((i) => i.vegetableId || i.id))]
     const { data, error } = await supabase.from('vegetables').select('id, price, price_tiers, is_active, stock_status').in('id', ids)
     if (error || !data) return { ok: false, changed: [], removed: [] }
+    const { syncCartWithCatalog } = await import('../pricing/cartSync') // भारी pricing engine सिर्फ़ ज़रूरत पर
     const res = syncCartWithCatalog(current, data)
     if (res.changed.length || res.removed.length) setItems(res.items)
     return { ok: true, changed: res.changed, removed: res.removed }

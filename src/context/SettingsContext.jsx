@@ -21,16 +21,15 @@ export function SettingsProvider({ children }) {
 
   async function loadSettings() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('delivery_settings')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle()
+    // दोनों क्वेरी एक साथ (पहले एक के बाद एक चलती थीं)
+    const [{ data, error }, rules] = await Promise.all([
+      supabase.from('delivery_settings').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('delivery_rules').select('*').eq('is_active', true).order('min_subtotal'),
+    ])
     if (!error && data) {
       setSettings({ ...DEFAULTS, ...data })
     }
     // डिलीवरी नियम (वैकल्पिक): टेबल न हो/खाली हो तो ऊपर की delivery_settings से ही पुराना व्यवहार चलता है
-    const rules = await supabase.from('delivery_rules').select('*').eq('is_active', true).order('min_subtotal')
     if (!rules.error && Array.isArray(rules.data)) setDeliveryRules(rules.data)
     setLoading(false)
   }

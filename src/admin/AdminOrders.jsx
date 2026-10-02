@@ -16,13 +16,14 @@ export default function AdminOrders() {
   const [kind, setKind] = useState('सभी')
   const initialStage = ORDER_STAGES.some((st) => st.key === params.get('stage')) ? params.get('stage') : 'all'
   const [stage, setStage] = useState(initialStage)
+  const [limit, setLimit] = useState(200)
   const [collapsed, setCollapsed] = useState({ done: true, cancelled: true })
   const [expanded, setExpanded] = useState(null)
   const { isOwner } = useAdminAuth()
 
   useEffect(() => {
     loadOrders()
-  }, [])
+  }, [limit])
 
   async function loadOrders() {
     setLoading(true)
@@ -30,6 +31,7 @@ export default function AdminOrders() {
       .from('orders')
       .select('*, order_items(*)')
       .order('created_at', { ascending: false })
+      .limit(limit) // हज़ारों ऑर्डर एक साथ न खिंचें
     setOrders(data || [])
     setLoading(false)
   }
@@ -194,6 +196,11 @@ export default function AdminOrders() {
           </section>
           )
         })}
+        {orders.length >= limit && (
+          <button onClick={() => setLimit((l) => l + 200)} className="btn-outline w-full">
+            पुराने ऑर्डर लोड करें (अभी सबसे नए {limit} दिख रहे हैं)
+          </button>
+        )}
         {groups.length === 0 && <p className="text-gray-400 text-center py-10">इस चयन में कोई ऑर्डर नहीं</p>}
       </div>
     </div>

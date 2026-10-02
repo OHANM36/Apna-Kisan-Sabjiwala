@@ -1,53 +1,71 @@
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
+import Loading from './components/Loading'
 import Home from './pages/Home'
-import Categories from './pages/Categories'
-import Cart from './pages/Cart'
-import Checkout from './pages/Checkout'
-import OrderConfirmation from './pages/OrderConfirmation'
-import OrderHistory from './pages/OrderHistory'
-import Vendors from './pages/Vendors'
-import VendorDetail from './pages/VendorDetail'
 import BottomNav from './components/BottomNav'
 import FloatingCallButton from './components/FloatingCallButton'
 import WelcomePopup from './components/WelcomePopup'
 import CustomerOrderWatcher from './components/CustomerOrderWatcher'
-import AIOrderAssistant from './components/AIOrderAssistant'
 
 import { AdminAuthProvider } from './context/AdminAuthContext'
-import AdminLogin from './admin/AdminLogin'
-import AdminLayout from './admin/AdminLayout'
-import AdminDashboard from './admin/AdminDashboard'
-import AdminVegetables from './admin/AdminVegetables'
-import AdminCategories from './admin/AdminCategories'
-import AdminBulkEdit from './admin/AdminBulkEdit'
-import AdminWelcomePopup from './admin/AdminWelcomePopup'
-import AdminOrders from './admin/AdminOrders'
-import AdminCustomers from './admin/AdminCustomers'
-import AdminReports from './admin/AdminReports'
-import AdminSellers from './admin/AdminSellers'
-import AdminDeliveryBoys from './admin/AdminDeliveryBoys'
-import AdminTodaysPrices from './admin/AdminTodaysPrices'
-import AdminProductPricing from './admin/AdminProductPricing'
-import AdminPricingSettings from './admin/AdminPricingSettings'
-import AdminPricingDashboard from './admin/AdminPricingDashboard'
-import AdminStock from './admin/AdminStock'
-import AdminPaymentSettings from './admin/AdminPaymentSettings'
 
 import { SellerAuthProvider } from './context/SellerAuthContext'
-import SellerSignup from './seller/SellerSignup'
-import SellerLogin from './seller/SellerLogin'
-import SellerLayout from './seller/SellerLayout'
-import SellerDashboard from './seller/SellerDashboard'
-import SellerVegetables from './seller/SellerVegetables'
-import SellerOrders from './seller/SellerOrders'
-import SellerProfile from './seller/SellerProfile'
 
 import { DeliveryAuthProvider } from './context/DeliveryAuthContext'
-import DeliveryLogin from './delivery/DeliveryLogin'
-import DeliveryLayout from './delivery/DeliveryLayout'
-import DeliveryOrders from './delivery/DeliveryOrders'
+
+// हर पेज अलग फ़ाइल (chunk) में — ग्राहक को एडमिन/सेलर/डिलीवरी का कोड डाउनलोड नहीं करना पड़ता
+const Categories = lazy(() => import('./pages/Categories'))
+const Cart = lazy(() => import('./pages/Cart'))
+const Checkout = lazy(() => import('./pages/Checkout'))
+const OrderConfirmation = lazy(() => import('./pages/OrderConfirmation'))
+const OrderHistory = lazy(() => import('./pages/OrderHistory'))
+const Vendors = lazy(() => import('./pages/Vendors'))
+const VendorDetail = lazy(() => import('./pages/VendorDetail'))
+const AIOrderAssistant = lazy(() => import('./components/AIOrderAssistant'))
+const AdminLogin = lazy(() => import('./admin/AdminLogin'))
+const AdminLayout = lazy(() => import('./admin/AdminLayout'))
+const AdminDashboard = lazy(() => import('./admin/AdminDashboard'))
+const AdminVegetables = lazy(() => import('./admin/AdminVegetables'))
+const AdminCategories = lazy(() => import('./admin/AdminCategories'))
+const AdminBulkEdit = lazy(() => import('./admin/AdminBulkEdit'))
+const AdminWelcomePopup = lazy(() => import('./admin/AdminWelcomePopup'))
+const AdminOrders = lazy(() => import('./admin/AdminOrders'))
+const AdminCustomers = lazy(() => import('./admin/AdminCustomers'))
+const AdminReports = lazy(() => import('./admin/AdminReports'))
+const AdminSellers = lazy(() => import('./admin/AdminSellers'))
+const AdminDeliveryBoys = lazy(() => import('./admin/AdminDeliveryBoys'))
+const AdminTodaysPrices = lazy(() => import('./admin/AdminTodaysPrices'))
+const AdminProductPricing = lazy(() => import('./admin/AdminProductPricing'))
+const AdminPricingSettings = lazy(() => import('./admin/AdminPricingSettings'))
+const AdminPricingDashboard = lazy(() => import('./admin/AdminPricingDashboard'))
+const AdminStock = lazy(() => import('./admin/AdminStock'))
+const AdminPaymentSettings = lazy(() => import('./admin/AdminPaymentSettings'))
+const SellerSignup = lazy(() => import('./seller/SellerSignup'))
+const SellerLogin = lazy(() => import('./seller/SellerLogin'))
+const SellerLayout = lazy(() => import('./seller/SellerLayout'))
+const SellerDashboard = lazy(() => import('./seller/SellerDashboard'))
+const SellerVegetables = lazy(() => import('./seller/SellerVegetables'))
+const SellerOrders = lazy(() => import('./seller/SellerOrders'))
+const SellerProfile = lazy(() => import('./seller/SellerProfile'))
+const DeliveryLogin = lazy(() => import('./delivery/DeliveryLogin'))
+const DeliveryLayout = lazy(() => import('./delivery/DeliveryLayout'))
+const DeliveryOrders = lazy(() => import('./delivery/DeliveryOrders'))
+
+// खाली समय में अगले संभावित पेज पहले से लोड कर लें (कार्ट/चेकआउट तुरंत खुलें)
+function usePrefetchCustomerPages() {
+  useEffect(() => {
+    const run = () => {
+      import('./pages/Cart')
+      import('./pages/Checkout')
+      import('./pages/OrderHistory')
+    }
+    const id = 'requestIdleCallback' in window ? window.requestIdleCallback(run, { timeout: 4000 }) : setTimeout(run, 2500)
+    return () => ('cancelIdleCallback' in window ? window.cancelIdleCallback(id) : clearTimeout(id))
+  }, [])
+}
 
 export default function App() {
+  usePrefetchCustomerPages()
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
   const isSellerRoute = location.pathname.startsWith('/seller')
@@ -55,6 +73,7 @@ export default function App() {
 
   return (
     <>
+      <Suspense fallback={<Loading />}>
       <Routes>
         {/* ग्राहक ऐप */}
         <Route path="/" element={<Home />} />
@@ -130,11 +149,14 @@ export default function App() {
           }
         />
       </Routes>
+      </Suspense>
 
       {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <FloatingCallButton />}
       {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <WelcomePopup />}
       {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <CustomerOrderWatcher />}
-      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <AIOrderAssistant />}
+      {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && (
+        <Suspense fallback={null}><AIOrderAssistant /></Suspense>
+      )}
       {!isAdminRoute && !isSellerRoute && !isDeliveryRoute && <BottomNav />}
     </>
   )

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
@@ -8,7 +8,7 @@ function tierCartId(vegId, tier) {
   return `${vegId}::${tier.qty}-${tier.unit}`
 }
 
-export default function VegetableCard({ veg }) {
+function VegetableCard({ veg }) {
   const { items, addToCart, increaseQty, decreaseQty } = useCart()
   const { t, tName } = useLanguage()
   const unavailable = veg.stock_status === 'अनुपलब्ध'
@@ -173,3 +173,6 @@ export default function VegetableCard({ veg }) {
     </div>
   )
 }
+
+// खोज में टाइप करते समय बिना बदले कार्ड दोबारा न बनें
+export default memo(VegetableCard)

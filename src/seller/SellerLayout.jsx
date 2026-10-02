@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import Loading from '../components/Loading'
 import { NavLink, Navigate, Outlet } from 'react-router-dom'
 import { useSellerAuth } from '../context/SellerAuthContext'
 import logo from '../assets/logo.png'
@@ -84,7 +86,7 @@ export default function SellerLayout() {
         <div className="md:hidden flex justify-end mb-3">
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
-        <Outlet />
+        <Suspense fallback={<Loading />}><Outlet /></Suspense>
       </main>
     </div>
   )
