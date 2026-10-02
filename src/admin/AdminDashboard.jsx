@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { formatRupee } from '../utils/format'
+import { formatRupee, ORDER_STAGES, stageOf } from '../utils/format'
 import Loading from '../components/Loading'
 
 export default function AdminDashboard() {
@@ -33,7 +33,8 @@ export default function AdminDashboard() {
     const cancelled = all.filter((o) => o.order_status === 'रद्द').length
     const totalPaid = all.filter((o) => o.payment_status === 'सफल').reduce((s, o) => s + Number(o.total_amount), 0)
 
-    setStats({ todaySales, totalOrders, completed, cancelled, totalPaid })
+    const stageCounts = Object.fromEntries(ORDER_STAGES.map((st) => [st.key, all.filter((o) => stageOf(o).key === st.key).length]))
+    setStats({ todaySales, totalOrders, completed, cancelled, totalPaid, stageCounts })
     setRecentOrders(recent || [])
     setLoading(false)
   }
@@ -61,6 +62,16 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      <h2 className="font-bold text-gray-800 mb-3">ऑर्डर की स्थिति</h2>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        {ORDER_STAGES.map((st) => (
+          <Link key={st.key} to={`/admin/orders?stage=${st.key}`} className={`rounded-2xl border p-3 ${st.tone}`}>
+            <p className="text-xs font-bold">{st.icon} {st.label}</p>
+            <p className="text-2xl font-extrabold mt-1">{stats.stageCounts[st.key]}</p>
+          </Link>
+        ))}
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-gray-800">हाल के ऑर्डर</h2>
@@ -75,7 +86,7 @@ export default function AdminDashboard() {
               </div>
               <div className="text-right">
                 <p className="font-bold text-gray-800 text-sm">{formatRupee(o.total_amount)}</p>
-                <p className="text-xs text-gray-500">{o.order_status}</p>
+                <p className={`text-[11px] font-bold inline-block mt-0.5 px-2 py-0.5 rounded-full border ${stageOf(o).tone}`}>{o.order_status}</p>
               </div>
             </div>
           ))}

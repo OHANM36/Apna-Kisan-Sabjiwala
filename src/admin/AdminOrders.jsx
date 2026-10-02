@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
-import { formatRupee, formatDate, ORDER_STATUS_STEPS, statusStepsFor } from '../utils/format'
+import { formatRupee, formatDate, statusStepsFor, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
 import Loading from '../components/Loading'
 import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
 
-const ALL_STATUSES = [...ORDER_STATUS_STEPS, 'रद्द']
+const KINDS = ['सभी', 'AI सहायक', 'COD']
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('सभी')
+  const [params] = useSearchParams()
+  const [kind, setKind] = useState('सभी')
+  const initialStage = ORDER_STAGES.some((st) => st.key === params.get('stage')) ? params.get('stage') : 'all'
+  const [stage, setStage] = useState(initialStage)
+  const [collapsed, setCollapsed] = useState({ done: true, cancelled: true })
   const [expanded, setExpanded] = useState(null)
   const { isOwner } = useAdminAuth()
 
@@ -39,13 +44,22 @@ export default function AdminOrders() {
     loadOrders()
   }
 
-  const filtered = filter === 'सभी'
-    ? orders
-    : filter === 'AI सहायक'
+  const byKind = kind === 'AI सहायक'
     ? orders.filter((o) => o.order_source === 'AI सहायक')
-    : filter === 'COD'
+    : kind === 'COD'
     ? orders.filter((o) => isCod(o))
-    : orders.filter((o) => o.order_status === filter)
+    : orders
+
+  const stageCount = (key) => byKind.filter((o) => stageOf(o).key === key).length
+  const visibleStages = ORDER_STAGES.filter((st) => stage === 'all' || stage === st.key)
+  const groups = visibleStages
+    .map((st) => ({ st, list: sortOrders(byKind.filter((o) => stageOf(o).key === st.key)) }))
+    .filter((g) => g.list.length > 0)
+
+  const chip = (active) =>
+    `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
+      active ? 'bg-kisan text-white border-kisan' : 'bg-white text-gray-500 border-gray-200'
+    }`
 
   if (loading) return <Loading />
 
@@ -53,22 +67,39 @@ export default function AdminOrders() {
     <div>
       <h1 className="font-extrabold text-xl text-gray-800 mb-5">ऑर्डर प्रबंधन</h1>
 
-      <div className="flex gap-2 overflow-x-auto mb-4 no-scrollbar">
-        {['सभी', 'AI सहायक', 'COD', ...ALL_STATUSES].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-              filter === s ? 'bg-kisan text-white border-kisan' : 'bg-white text-gray-500 border-gray-200'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-col gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] font-bold text-gray-400 shrink-0 w-16">प्रकार</span>
+          {KINDS.map((k) => (
+            <button key={k} onClick={() => setKind(k)} className={chip(kind === k)}>{k === 'AI सहायक' ? '🤖 ' : k === 'COD' ? '💵 ' : ''}{k}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] font-bold text-gray-400 shrink-0 w-16">स्थिति</span>
+          <button onClick={() => setStage('all')} className={chip(stage === 'all')}>सभी ({byKind.length})</button>
+          {ORDER_STAGES.map((st) => (
+            <button key={st.key} onClick={() => setStage(st.key)} className={chip(stage === st.key)}>
+              {st.icon} {st.label} ({stageCount(st.key)})
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {filtered.map((o) => (
+      <div className="flex flex-col gap-6">
+        {groups.map(({ st, list }) => {
+          const isCollapsed = stage === 'all' && collapsed[st.key]
+          return (
+          <section key={st.key}>
+            <button
+              onClick={() => setCollapsed((c) => ({ ...c, [st.key]: !c[st.key] }))}
+              className={`w-full flex items-center justify-between rounded-xl border px-4 py-2 mb-3 ${st.tone}`}
+            >
+              <span className="font-extrabold text-sm">{st.icon} {st.label} <span className="font-bold opacity-70">({list.length})</span></span>
+              {stage === 'all' && <span className="text-xs font-bold">{isCollapsed ? 'दिखाएँ ▾' : 'छिपाएँ ▴'}</span>}
+            </button>
+            {!isCollapsed && (
+            <div className="flex flex-col gap-3">
+        {list.map((o) => (
           <div key={o.id} className="bg-white rounded-2xl shadow-sm p-4">
             <div className="flex justify-between items-start cursor-pointer" onClick={() => setExpanded(expanded === o.id ? null : o.id)}>
               <div>
@@ -158,7 +189,12 @@ export default function AdminOrders() {
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <p className="text-gray-400 text-center py-10">इस स्थिति में कोई ऑर्डर नहीं</p>}
+            </div>
+            )}
+          </section>
+          )
+        })}
+        {groups.length === 0 && <p className="text-gray-400 text-center py-10">इस चयन में कोई ऑर्डर नहीं</p>}
       </div>
     </div>
   )
