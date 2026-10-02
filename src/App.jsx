@@ -31,6 +31,7 @@ import AdminProductPricing from './admin/AdminProductPricing'
 import AdminPricingSettings from './admin/AdminPricingSettings'
 import AdminPricingDashboard from './admin/AdminPricingDashboard'
 import AdminStock from './admin/AdminStock'
+import AdminPaymentSettings from './admin/AdminPaymentSettings'
 
 import { SellerAuthProvider } from './context/SellerAuthContext'
 import SellerSignup from './seller/SellerSignup'
@@ -86,6 +87,7 @@ export default function App() {
                   <Route path="todays-prices" element={<AdminTodaysPrices />} />
                   <Route path="product-pricing" element={<AdminProductPricing />} />
                   <Route path="pricing-settings" element={<AdminPricingSettings />} />
+                  <Route path="payment-settings" element={<AdminPaymentSettings />} />
                   <Route path="pricing-dashboard" element={<AdminPricingDashboard />} />
                   <Route path="stock" element={<AdminStock />} />
                 </Route>

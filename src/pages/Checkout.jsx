@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
 import { supabase } from '../supabaseClient'
 import { startOnlinePayment } from '../utils/payment'
+import { codAvailability, PAYMENT_COD, PAYMENT_ONLINE } from '../utils/paymentMethods'
 import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -25,7 +26,7 @@ function localDate(plusDays) {
 
 export default function Checkout() {
   const { items, subtotal, clearCart, syncPrices } = useCart()
-  const { settings, deliveryRules, loading: settingsLoading } = useSettings()
+  const { settings, deliveryRules, loading: settingsLoading, reloadSettings } = useSettings()
   const { t } = useLanguage()
   const navigate = useNavigate()
 
@@ -53,6 +54,7 @@ export default function Checkout() {
   const [paymentError, setPaymentError] = useState('')
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState('')
+  const [payMethod, setPayMethod] = useState(PAYMENT_ONLINE) // डिफ़ॉल्ट ऑनलाइन — COD ग्राहक खुद चुने
 
   async function handleUseCurrentLocation() {
     setLocating(true)
@@ -78,6 +80,9 @@ export default function Checkout() {
   const { fee: deliveryFee } = calculateDeliveryFee(subtotal, deliveryRules, settings)
   const total = Math.max(0, subtotal + deliveryFee - discount)
   const shortfall = minOrderShortfall(subtotal, settings.min_order_value)
+  // COD तभी जब एडमिन ने चालू किया हो और राशि सीमा के अंदर हो (कार्ट बढ़ने पर अपने-आप ऑनलाइन पर लौटता है)
+  const cod = codAvailability(settings, total)
+  const method = cod.available && payMethod === PAYMENT_COD ? PAYMENT_COD : PAYMENT_ONLINE
 
   // सीधे /checkout खोलने पर भी न्यूनतम ऑर्डर लागू रहे
   useEffect(() => {
@@ -175,6 +180,7 @@ export default function Checkout() {
         lat: form.latitude,
         lng: form.longitude,
         order_source: safeGet('aks_order_source', 'session') || 'वेबसाइट',
+        payment_method: method === PAYMENT_COD ? 'COD' : 'ONLINE', // असली जाँच (चालू? सीमा?) सर्वर पर होती है
       }
 
       // वही कार्ट+फ़ॉर्म दोबारा सबमिट हो (retry/double-click) तो वही idempotency key → वही ऑर्डर
@@ -210,6 +216,12 @@ export default function Checkout() {
         return
       }
 
+      // कैश ऑन डिलीवरी: ऑर्डर बन गया, भुगतान डिलीवरी पर — Razorpay नहीं खुलेगा
+      if (placed.payment_method === 'COD') {
+        finish()
+        return
+      }
+
       // ऑनलाइन भुगतान (Razorpay). "सफल" सिर्फ़ सर्वर की signature-जाँच/webhook से लिखा जाता है।
       await startOnlinePayment({
         orderId: placed.order_id,
@@ -230,6 +242,10 @@ export default function Checkout() {
     } catch (err) {
       console.error(err)
       setPaymentError(friendlyError(err)) // तकनीकी error.message ग्राहक को नहीं दिखता
+      if (/COD_DISABLED/.test(String(err?.message))) {
+        setPayMethod(PAYMENT_ONLINE)
+        reloadSettings() // एडमिन ने COD बंद कर दिया — ताज़ा सेटिंग लाएँ
+      }
       setSubmitting(false)
     }
   }
@@ -327,10 +343,37 @@ export default function Checkout() {
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold rounded-xl px-4 py-3 mt-4 flex items-center gap-2">
-          <span>🔒</span>
-          <span>{t('checkout_online_only')}</span>
-        </div>
+        {settings.cod_enabled ? (
+          <div className="card p-4 mt-4">
+            <h3 className="font-bold text-gray-700 text-sm mb-3">{t('checkout_payment_method')}</h3>
+            <div className="flex flex-col gap-2" role="radiogroup" aria-label={t('checkout_payment_method')}>
+              <MethodOption
+                checked={method === PAYMENT_ONLINE}
+                disabled={submitting}
+                onSelect={() => setPayMethod(PAYMENT_ONLINE)}
+                icon="💳"
+                title={t('checkout_method_online')}
+                desc={t('checkout_method_online_desc')}
+              />
+              <MethodOption
+                checked={method === PAYMENT_COD}
+                disabled={submitting || !cod.available}
+                onSelect={() => setPayMethod(PAYMENT_COD)}
+                icon="💵"
+                title={t('checkout_method_cod')}
+                desc={t('checkout_method_cod_desc')}
+              />
+            </div>
+            {cod.reason === 'limit' && (
+              <p className="text-xs text-orange-600 font-semibold mt-2">{t('checkout_cod_limit').replace('{max}', formatRupee(cod.limit))}</p>
+            )}
+          </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold rounded-xl px-4 py-3 mt-4 flex items-center gap-2">
+            <span>🔒</span>
+            <span>{t('checkout_online_only')}</span>
+          </div>
+        )}
 
         {paymentError && (
           <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-xl px-4 py-3 mt-3">
@@ -341,10 +384,31 @@ export default function Checkout() {
 
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 safe-bottom">
         <button onClick={handlePayNow} disabled={submitting} className="btn-primary w-full">
-          {submitting ? t('checkout_processing') : `${formatRupee(total)} ${t('checkout_pay_button')}`}
+          {submitting
+            ? t('checkout_processing')
+            : method === PAYMENT_COD
+            ? `${t('checkout_cod_button')} — ${formatRupee(total)}`
+            : `${formatRupee(total)} ${t('checkout_pay_button')}`}
         </button>
       </div>
     </div>
+  )
+}
+
+function MethodOption({ checked, disabled, onSelect, icon, title, desc }) {
+  return (
+    <label
+      className={`flex items-start gap-3 rounded-xl border-2 p-3 min-h-[56px] ${
+        checked ? 'border-kisan bg-kisan/5' : 'border-gray-200'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <input type="radio" name="payMethod" className="mt-1 w-4 h-4 accent-green-700" checked={checked} disabled={disabled} onChange={onSelect} />
+      <span className="text-xl leading-none mt-0.5">{icon}</span>
+      <span>
+        <span className="block font-bold text-sm text-gray-800">{title}</span>
+        <span className="block text-xs text-gray-500">{desc}</span>
+      </span>
+    </label>
   )
 }
 

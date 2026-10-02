@@ -18,6 +18,7 @@ const links = [
   { to: '/admin/product-pricing', labelKey: 'nav_product_pricing', icon: '🏷️', ownerOnly: true },
   { to: '/admin/pricing-dashboard', labelKey: 'nav_pricing_dashboard', icon: '💹', ownerOnly: true },
   { to: '/admin/pricing-settings', labelKey: 'nav_pricing_settings', icon: '⚙️', ownerOnly: true },
+  { to: '/admin/payment-settings', label: 'भुगतान विकल्प (COD)', icon: '💵', ownerOnly: true },
   { to: '/admin/stock', labelKey: 'nav_stock', icon: '📦' },
   { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
   { to: '/admin/sellers', label: 'विक्रेता', icon: '🧑‍🌾' },
@@ -52,7 +53,10 @@ export default function AdminLayout() {
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           playNewOrderSound()
-          pushToast(`🆕 नया ऑर्डर आया: ${payload.new.order_number} — ${payload.new.customer_name}`, 'new-order')
+          pushToast(
+            `🆕 नया ऑर्डर आया: ${payload.new.order_number} — ${payload.new.customer_name}${payload.new.payment_method === 'COD' ? ' • 💵 COD' : ''}`,
+            'new-order'
+          )
         }
       )
       .on(

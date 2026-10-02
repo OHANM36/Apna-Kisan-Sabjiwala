@@ -10,6 +10,7 @@ import { getOrderToken, saveMyOrder } from '../utils/myOrders'
 import { startOnlinePayment } from '../utils/payment'
 import { friendlyError, withTimeout } from '../utils/errors'
 import { useLanguage } from '../context/LanguageContext'
+import { isCod, isPaid } from '../utils/paymentMethods'
 
 export default function OrderConfirmation() {
   const { orderId } = useParams()
@@ -55,7 +56,7 @@ export default function OrderConfirmation() {
 
   // भुगतान की पुष्टि बाकी हो (webhook आने तक) तो कुछ देर हर 5 सेकंड में स्थिति जाँचें
   useEffect(() => {
-    if (!order || order.payment_status === 'सफल' || order.order_status === 'रद्द') return
+    if (!order || isCod(order) || order.payment_status === 'सफल' || order.order_status === 'रद्द') return
     let tries = 0
     const id = setInterval(async () => {
       tries += 1
@@ -63,7 +64,7 @@ export default function OrderConfirmation() {
       if (tries >= 24 || o?.payment_status === 'सफल') clearInterval(id)
     }, 5000)
     return () => clearInterval(id)
-  }, [order?.payment_status, order?.order_status, orderId])
+  }, [order?.payment_status, order?.order_status, order?.payment_method, orderId])
 
   function retryPayment() {
     setPaying(true)
@@ -91,6 +92,16 @@ export default function OrderConfirmation() {
   )
 
   const currentStepIndex = ORDER_STATUS_STEPS.indexOf(order.order_status)
+  const cod = isCod(order)
+  const paid = isPaid(order)
+  const cancelled = order.order_status === 'रद्द'
+  const heading = paid
+    ? { icon: '✅', text: t('order_success') }
+    : cod
+    ? cancelled
+      ? { icon: '❌', text: tStatus('रद्द') }
+      : { icon: '✅', text: t('order_cod_placed') }
+    : { icon: '⏳', text: 'ऑर्डर बन गया — भुगतान बाकी' }
   const whatsappLink = buildWhatsAppOrderLink({ order, items, businessWhatsapp: settings.business_whatsapp })
 
   return (
@@ -98,15 +109,21 @@ export default function OrderConfirmation() {
       <Header />
       <div className="px-4 py-6 animate-fade-slide-in">
         <div className="flex flex-col items-center text-center mb-6">
-          <span className="text-6xl mb-2">{order.payment_status === 'सफल' ? '✅' : '⏳'}</span>
-          <h2 className="font-extrabold text-xl text-gray-800">{order.payment_status === 'सफल' ? t('order_success') : 'ऑर्डर बन गया — भुगतान बाकी'}</h2>
+          <span className="text-6xl mb-2">{heading.icon}</span>
+          <h2 className="font-extrabold text-xl text-gray-800">{heading.text}</h2>
           <p className="text-gray-500 text-sm mt-1">{t('order_number')}: <span className="font-bold text-kisan">{order.order_number}</span></p>
         </div>
 
         {(notice || error) && (
           <div className="bg-orange-50 border border-orange-200 text-orange-700 text-sm font-semibold rounded-xl px-4 py-3 mb-4">{notice || error}</div>
         )}
-        {order.payment_status !== 'सफल' && order.order_status !== 'रद्द' && (
+        {cod && !paid && !cancelled && (
+          <div className="card p-4 mb-4 border-2 border-amber-300 bg-amber-50">
+            <p className="text-sm font-bold text-amber-800">💵 {t('order_cod_title')}</p>
+            <p className="text-sm text-amber-800 mt-1">{t('order_cod_pay_note').replace('{amount}', formatRupee(order.total_amount))}</p>
+          </div>
+        )}
+        {!cod && order.payment_status !== 'सफल' && order.order_status !== 'रद्द' && (
           <div className="card p-4 mb-4 border-2 border-orange-300">
             <p className="text-sm font-bold text-orange-600 mb-2">भुगतान बाकी है</p>
             <button onClick={retryPayment} disabled={paying} className="btn-primary w-full">
@@ -161,8 +178,9 @@ export default function OrderConfirmation() {
           <p className="text-sm text-gray-600">{order.customer_name} • {order.customer_phone}</p>
           <p className="text-sm text-gray-600 mt-1">{order.full_address}{order.mohalla ? `, ${order.mohalla}` : ''}, {order.city} - {order.pincode}</p>
           {order.delivery_date && <p className="text-sm text-gray-600 mt-1">{formatDate(order.delivery_date)} • {order.delivery_time_slot}</p>}
-          <p className={`text-sm font-bold mt-2 ${order.payment_status === 'सफल' ? 'text-kisan' : 'text-orange-500'}`}>
-            {t('order_payment_status')}: {tStatus(order.payment_status)}
+          <p className={`text-sm font-bold mt-2 ${paid ? 'text-kisan' : 'text-orange-500'}`}>
+            {t('order_payment_status')}:{' '}
+            {cod ? (paid ? t('order_cod_received') : `${t('order_cod_title')} (${tStatus('लंबित')})`) : tStatus(order.payment_status)}
           </p>
         </div>
 

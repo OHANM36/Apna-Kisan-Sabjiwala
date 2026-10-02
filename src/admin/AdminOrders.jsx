@@ -4,6 +4,7 @@ import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, ORDER_STATUS_STEPS } from '../utils/format'
 import Loading from '../components/Loading'
+import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
 
 const ALL_STATUSES = [...ORDER_STATUS_STEPS, 'रद्द']
 
@@ -42,6 +43,8 @@ export default function AdminOrders() {
     ? orders
     : filter === 'AI सहायक'
     ? orders.filter((o) => o.order_source === 'AI सहायक')
+    : filter === 'COD'
+    ? orders.filter((o) => isCod(o))
     : orders.filter((o) => o.order_status === filter)
 
   if (loading) return <Loading />
@@ -51,7 +54,7 @@ export default function AdminOrders() {
       <h1 className="font-extrabold text-xl text-gray-800 mb-5">ऑर्डर प्रबंधन</h1>
 
       <div className="flex gap-2 overflow-x-auto mb-4 no-scrollbar">
-        {['सभी', 'AI सहायक', ...ALL_STATUSES].map((s) => (
+        {['सभी', 'AI सहायक', 'COD', ...ALL_STATUSES].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -77,11 +80,16 @@ export default function AdminOrders() {
                     🤖 {o.order_source}
                   </span>
                 )}
+                {isCod(o) && (
+                  <span className="inline-block mt-1 ml-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                    💵 कैश ऑन डिलीवरी
+                  </span>
+                )}
               </div>
               <div className="text-right">
                 <p className="font-extrabold text-gray-800">{formatRupee(o.total_amount)}</p>
-                <p className={`text-xs font-bold ${o.payment_status === 'सफल' ? 'text-kisan' : 'text-orange-500'}`}>
-                  भुगतान: {o.payment_status}
+                <p className={`text-xs font-bold ${isPaid(o) ? 'text-kisan' : 'text-orange-500'}`}>
+                  भुगतान: {paymentText(o)}
                 </p>
               </div>
             </div>

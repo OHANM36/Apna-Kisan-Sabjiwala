@@ -10,6 +10,8 @@ const DEFAULTS = {
   business_whatsapp: import.meta.env.VITE_BUSINESS_WHATSAPP || '918839351985',
   business_name: import.meta.env.VITE_BUSINESS_NAME || 'Apna Kisan Sabjiwala',
   is_store_open: true,
+  cod_enabled: false, // कैश ऑन डिलीवरी — एडमिन पैनल से चालू होता है
+  cod_max_order_value: null, // COD की अधिकतम ऑर्डर-राशि (खाली = कोई सीमा नहीं)
 }
 
 export function SettingsProvider({ children }) {

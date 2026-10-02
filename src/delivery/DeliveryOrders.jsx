@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import { formatRupee, formatDate } from '../utils/format'
 import Loading from '../components/Loading'
+import { isCod, isPaid } from '../utils/paymentMethods'
 
 const TABS = [
   { key: 'available', label: 'उपलब्ध ऑर्डर' },
@@ -126,6 +127,11 @@ export default function DeliveryOrders() {
                   <span className="inline-block mt-1 text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                     {o.order_status}
                   </span>
+                  {isCod(o) && !isPaid(o) && (
+                    <span className="block mt-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                      💵 कैश लें {formatRupee(o.total_amount)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -177,6 +183,11 @@ export default function DeliveryOrders() {
                 </button>
               )}
 
+              {tab === 'mine' && isCod(o) && !isPaid(o) && (
+                <p className="mt-2 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  💵 ग्राहक से {formatRupee(o.total_amount)} कैश लें — पैसे लेने के बाद ही डिलीवरी पिन कन्फर्म करें।
+                </p>
+              )}
               {tab === 'mine' && (
                 <button
                   onClick={() => openConfirm(o)}
@@ -209,6 +220,11 @@ export default function DeliveryOrders() {
             <p className="text-xs text-gray-500 mb-4">
               {confirmOrder.order_number} — ग्राहक ({confirmOrder.customer_name}) से 4 अंकों का डिलीवरी पिन पूछें और यहाँ डालें।
             </p>
+            {isCod(confirmOrder) && !isPaid(confirmOrder) && (
+              <p className="mb-4 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                💵 कन्फर्म करने से पहले ग्राहक से {formatRupee(confirmOrder.total_amount)} कैश ले लें।
+              </p>
+            )}
             <input
               autoFocus
               required

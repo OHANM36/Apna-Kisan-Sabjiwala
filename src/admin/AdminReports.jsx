@@ -65,7 +65,7 @@ export default function AdminReports() {
     { label: 'कुल ऑर्डर', value: report.totalOrders },
     { label: 'पूरे हुए ऑर्डर', value: report.completedOrders },
     { label: 'रद्द ऑर्डर', value: report.cancelledOrders },
-    { label: 'ऑनलाइन भुगतान की कुल राशि', value: formatRupee(report.totalOnlinePayments) },
+    { label: 'कुल प्राप्त भुगतान (ऑनलाइन + कैश)', value: formatRupee(report.totalOnlinePayments) },
   ]
 
   return (

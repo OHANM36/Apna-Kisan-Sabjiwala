@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient'
 import { useSellerAuth } from '../context/SellerAuthContext'
 import { formatRupee, formatDate } from '../utils/format'
 import Loading from '../components/Loading'
+import { isPaid, paymentText } from '../utils/paymentMethods'
 
 export default function SellerOrders() {
   const { session } = useSellerAuth()
@@ -71,8 +72,8 @@ export default function SellerOrders() {
                 ))}
               </div>
 
-              <p className={`text-xs font-bold mt-2 ${order?.payment_status === 'सफल' ? 'text-kisan' : 'text-orange-500'}`}>
-                भुगतान की स्थिति: {order?.payment_status}
+              <p className={`text-xs font-bold mt-2 ${isPaid(order) ? 'text-kisan' : 'text-orange-500'}`}>
+                भुगतान की स्थिति: {paymentText(order)}
               </p>
             </div>
           )

@@ -83,6 +83,20 @@ const translations = {
     en: 'Only online payment available (UPI / Card / Net Banking) — Cash on delivery is not available.',
   },
   checkout_pay_button: { hi: 'का ऑनलाइन भुगतान करें', en: 'Pay Online' },
+  checkout_payment_method: { hi: 'भुगतान का तरीका', en: 'Payment Method' },
+  checkout_method_online: { hi: 'ऑनलाइन भुगतान', en: 'Pay Online' },
+  checkout_method_online_desc: { hi: 'UPI / कार्ड / नेट बैंकिंग', en: 'UPI / Card / Net Banking' },
+  checkout_method_cod: { hi: 'कैश ऑन डिलीवरी', en: 'Cash on Delivery' },
+  checkout_method_cod_desc: { hi: 'सामान मिलने पर डिलीवरी बॉय को कैश दें', en: 'Pay cash to the delivery person when you receive your order' },
+  checkout_cod_limit: {
+    hi: 'कैश ऑन डिलीवरी सिर्फ़ {max} तक के ऑर्डर पर उपलब्ध है। ऑनलाइन भुगतान चुनें या कार्ट घटाएँ।',
+    en: 'Cash on Delivery is available only for orders up to {max}. Choose online payment or reduce your cart.',
+  },
+  checkout_cod_button: { hi: 'ऑर्डर करें (कैश ऑन डिलीवरी)', en: 'Place Order (Cash on Delivery)' },
+  order_cod_title: { hi: 'कैश ऑन डिलीवरी', en: 'Cash on Delivery' },
+  order_cod_placed: { hi: 'ऑर्डर दर्ज हो गया — डिलीवरी पर भुगतान करें', en: 'Order placed — pay on delivery' },
+  order_cod_pay_note: { hi: 'डिलीवरी पर {amount} कैश दें। पैसे देने के बाद ही डिलीवरी पिन बताएँ।', en: 'Pay {amount} in cash on delivery. Share the delivery PIN only after paying.' },
+  order_cod_received: { hi: 'कैश मिल गया', en: 'Cash received' },
   checkout_processing: { hi: 'प्रोसेस हो रहा है...', en: 'Processing...' },
 
   // Checkout validation/coupon messages

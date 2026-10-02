@@ -30,12 +30,13 @@ Deno.serve(async (req) => {
 
     const { data: order, error } = await admin
       .from('orders')
-      .select('id, order_number, total_amount, payment_status, order_status')
+      .select('id, order_number, total_amount, payment_status, payment_method, order_status')
       .eq('id', orderId)
       .eq('access_token', token)
       .maybeSingle()
     if (error) throw error
     if (!order) return json(req, { error: 'ORDER_NOT_FOUND' }, 404)
+    if (order.payment_method === 'COD') return json(req, { error: 'COD_ORDER' }, 409) // COD ऑर्डर पर ऑनलाइन भुगतान नहीं
     if (order.payment_status === 'सफल') return json(req, { already_paid: true })
     if (order.order_status === 'रद्द') return json(req, { error: 'ORDER_CANCELLED' }, 409)
 

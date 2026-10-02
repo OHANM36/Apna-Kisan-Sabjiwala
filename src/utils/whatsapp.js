@@ -1,4 +1,5 @@
 import { formatRupee } from './format'
+import { isCod, isPaid } from './paymentMethods'
 
 /**
  * ऑर्डर की जानकारी से WhatsApp लिंक बनाता है
@@ -23,7 +24,12 @@ export function buildWhatsAppOrderLink({ order, items, businessWhatsapp }) {
   lines.push(`डिलीवरी शुल्क: ${formatRupee(order.delivery_fee)}`)
   if (order.discount > 0) lines.push(`छूट: -${formatRupee(order.discount)}`)
   lines.push(`*कुल राशि: ${formatRupee(order.total_amount)}*`)
-  lines.push(`भुगतान की स्थिति: ${order.payment_status}`)
+  if (isCod(order)) {
+    // दुकानदार को साफ़ दिखे कि पैसा अभी नहीं आया — डिलीवरी पर कैश लेना है
+    lines.push(isPaid(order) ? `भुगतान: कैश मिल गया` : `भुगतान: कैश ऑन डिलीवरी — डिलीवरी पर ${formatRupee(order.total_amount)} लेना है`)
+  } else {
+    lines.push(`भुगतान की स्थिति: ${order.payment_status}`)
+  }
   if (order.extra_notes) lines.push(`अतिरिक्त जानकारी: ${order.extra_notes}`)
 
   const text = encodeURIComponent(lines.join('\n'))
