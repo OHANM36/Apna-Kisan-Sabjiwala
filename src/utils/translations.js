@@ -6,6 +6,11 @@ const translations = {
   app_name: { hi: 'अपना किसान सब्ज़ीवाला', en: 'Apna Kisan Sabjiwala' },
   app_tagline: { hi: 'ताज़ी सब्ज़ियाँ — सीधे आपके घर तक', en: 'Fresh vegetables — straight to your door' },
 
+  // PWA इंस्टॉल
+  install_app: { hi: 'ऐप इंस्टॉल करें', en: 'Install app' },
+  install_ios_help: { hi: 'Safari में नीचे "Share" (⬆️) दबाएँ, फिर "Add to Home Screen" चुनें।', en: 'In Safari, tap the Share (⬆️) button, then choose "Add to Home Screen".' },
+  install_ok: { hi: 'ठीक है', en: 'OK' },
+
   // Header
   search_placeholder: { hi: 'सब्ज़ी खोजें... जैसे आलू, टमाटर', en: 'Search vegetables... e.g. potato, tomato' },
 

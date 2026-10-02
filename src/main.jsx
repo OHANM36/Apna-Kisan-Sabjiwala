@@ -5,7 +5,10 @@ import App from './App.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import { SettingsProvider } from './context/SettingsContext.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
+import { initPwa } from './utils/pwa'
 import './index.css'
+
+initPwa()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

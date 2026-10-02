@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/LanguageContext'
 import logo from '../assets/logo.png'
+import InstallButton from './InstallButton'
 
 export default function Header({ showSearch, searchValue, onSearchChange }) {
   const { totalItems } = useCart()
@@ -18,6 +19,7 @@ export default function Header({ showSearch, searchValue, onSearchChange }) {
           </div>
         </Link>
         <div className="flex items-center gap-2 shrink-0">
+          <InstallButton />
           <button
             onClick={toggleLanguage}
             className="bg-white/10 rounded-full px-2.5 py-1.5 text-[11px] font-bold active:scale-90 transition-transform"
