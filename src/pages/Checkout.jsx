@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
 import { supabase } from '../supabaseClient'
 import { startOnlinePayment } from '../utils/payment'
-import { codAvailability, PAYMENT_COD, PAYMENT_ONLINE } from '../utils/paymentMethods'
+import { codAvailability, PAYMENT_COD, PAYMENT_COD_ONLINE, PAYMENT_ONLINE } from '../utils/paymentMethods'
 import { getCurrentLocationAddress } from '../utils/geolocation'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
@@ -84,7 +84,8 @@ export default function Checkout() {
   const shortfall = minOrderShortfall(subtotal, settings.min_order_value)
   // COD तभी जब एडमिन ने चालू किया हो और राशि सीमा के अंदर हो (कार्ट बढ़ने पर अपने-आप ऑनलाइन पर लौटता है)
   const cod = codAvailability(settings, total)
-  const method = cod.available && payMethod === PAYMENT_COD ? PAYMENT_COD : PAYMENT_ONLINE
+  const method = cod.available && (payMethod === PAYMENT_COD || payMethod === PAYMENT_COD_ONLINE) ? payMethod : PAYMENT_ONLINE
+  const isCodMethod = method === PAYMENT_COD || method === PAYMENT_COD_ONLINE // दोनों सर्वर पर 'COD' ऑर्डर हैं
 
   // सीधे /checkout खोलने पर भी न्यूनतम ऑर्डर लागू रहे
   useEffect(() => {
@@ -200,7 +201,7 @@ export default function Checkout() {
         lat: form.latitude,
         lng: form.longitude,
         order_source: safeGet('aks_order_source', 'session') || 'वेबसाइट',
-        payment_method: method === PAYMENT_COD ? 'COD' : 'ONLINE', // असली जाँच (चालू? सीमा?) सर्वर पर होती है
+        payment_method: isCodMethod ? 'COD' : 'ONLINE', // असली जाँच (चालू? सीमा?) सर्वर पर होती है
       }
 
       // वही कार्ट+फ़ॉर्म दोबारा सबमिट हो (retry/double-click) तो वही idempotency key → वही ऑर्डर
@@ -238,6 +239,15 @@ export default function Checkout() {
 
       // कैश ऑन डिलीवरी: ऑर्डर बन गया, भुगतान डिलीवरी पर — Razorpay नहीं खुलेगा
       if (placed.payment_method === 'COD') {
+        // "डिलीवरी पर ऑनलाइन (UPI)" का चुनाव दर्ज करें। यह ज़रूरी-नहीं कदम है: न हो सके तो ऑर्डर कैश-ऑन-डिलीवरी की तरह ही बना रहता है
+        // और डिलीवरी बॉय मौके पर भी UPI ले सकता है।
+        if (method === PAYMENT_COD_ONLINE) {
+          try {
+            await withTimeout(supabase.rpc('set_cod_pay_mode', { p_order_id: placed.order_id, p_token: placed.access_token, p_mode: 'online' }))
+          } catch (e) {
+            console.warn('set_cod_pay_mode', e)
+          }
+        }
         finish()
         return
       }
@@ -396,6 +406,14 @@ export default function Checkout() {
                 title={t('checkout_method_cod')}
                 desc={t('checkout_method_cod_desc')}
               />
+              <MethodOption
+                checked={method === PAYMENT_COD_ONLINE}
+                disabled={submitting || !cod.available}
+                onSelect={() => setPayMethod(PAYMENT_COD_ONLINE)}
+                icon="📲"
+                title={t('checkout_method_cod_online')}
+                desc={t('checkout_method_cod_online_desc')}
+              />
             </div>
             {cod.reason === 'limit' && (
               <p className="text-xs text-orange-600 font-semibold mt-2">{t('checkout_cod_limit').replace('{max}', formatRupee(cod.limit))}</p>
@@ -419,6 +437,8 @@ export default function Checkout() {
         <button onClick={handlePayNow} disabled={submitting} className="btn-primary w-full">
           {submitting
             ? t('checkout_processing')
+            : method === PAYMENT_COD_ONLINE
+            ? `${t('checkout_cod_online_button')} — ${formatRupee(total)}`
             : method === PAYMENT_COD
             ? `${t('checkout_cod_button')} — ${formatRupee(total)}`
             : `${formatRupee(total)} ${t('checkout_pay_button')}`}

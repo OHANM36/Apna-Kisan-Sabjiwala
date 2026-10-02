@@ -9,7 +9,7 @@ import { getOrderToken, saveMyOrder } from '../utils/myOrders'
 import { startOnlinePayment } from '../utils/payment'
 import { friendlyError, withTimeout } from '../utils/errors'
 import { useLanguage } from '../context/LanguageContext'
-import { isCod, isPaid } from '../utils/paymentMethods'
+import { isCod, isCodOnline, isPaid } from '../utils/paymentMethods'
 import { OrderConfirmationSkeleton } from '../components/Skeleton'
 
 export default function OrderConfirmation() {
@@ -94,6 +94,7 @@ export default function OrderConfirmation() {
   const statusSteps = statusStepsFor(order)
   const currentStepIndex = statusSteps.indexOf(order.order_status)
   const cod = isCod(order)
+  const codOnline = isCodOnline(order)
   const paid = isPaid(order)
   const cancelled = order.order_status === 'रद्द'
   const heading = paid
@@ -120,8 +121,8 @@ export default function OrderConfirmation() {
         )}
         {cod && !paid && !cancelled && (
           <div className="card p-4 mb-4 border-2 border-amber-300 bg-amber-50">
-            <p className="text-sm font-bold text-amber-800">💵 {t('order_cod_title')}</p>
-            <p className="text-sm text-amber-800 mt-1">{t('order_cod_pay_note').replace('{amount}', formatRupee(order.total_amount))}</p>
+            <p className="text-sm font-bold text-amber-800">{codOnline ? `📲 ${t('order_cod_online_title')}` : `💵 ${t('order_cod_title')}`}</p>
+            <p className="text-sm text-amber-800 mt-1">{t(codOnline ? 'order_cod_online_pay_note' : 'order_cod_pay_note').replace('{amount}', formatRupee(order.total_amount))}</p>
           </div>
         )}
         {!cod && order.payment_status !== 'सफल' && order.order_status !== 'रद्द' && (
@@ -181,7 +182,11 @@ export default function OrderConfirmation() {
           {order.delivery_date && <p className="text-sm text-gray-600 mt-1">{formatDate(order.delivery_date)} • {order.delivery_time_slot}</p>}
           <p className={`text-sm font-bold mt-2 ${paid ? 'text-kisan' : 'text-orange-500'}`}>
             {t('order_payment_status')}:{' '}
-            {cod ? (paid ? t('order_cod_received') : `${t('order_cod_title')} (${tStatus('लंबित')})`) : tStatus(order.payment_status)}
+            {cod
+              ? paid
+                ? t(codOnline ? 'order_cod_online_received' : 'order_cod_received')
+                : `${t(codOnline ? 'order_cod_online_title' : 'order_cod_title')} (${tStatus('लंबित')})`
+              : tStatus(order.payment_status)}
           </p>
         </div>
 

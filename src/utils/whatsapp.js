@@ -1,5 +1,5 @@
 import { formatRupee } from './format'
-import { isCod, isPaid } from './paymentMethods'
+import { isCod, isCodOnline, isPaid } from './paymentMethods'
 
 /**
  * ऑर्डर की जानकारी से WhatsApp लिंक बनाता है
@@ -26,7 +26,11 @@ export function buildWhatsAppOrderLink({ order, items, businessWhatsapp }) {
   lines.push(`*कुल राशि: ${formatRupee(order.total_amount)}*`)
   if (isCod(order)) {
     // दुकानदार को साफ़ दिखे कि पैसा अभी नहीं आया — डिलीवरी पर कैश लेना है
-    lines.push(isPaid(order) ? `भुगतान: कैश मिल गया` : `भुगतान: कैश ऑन डिलीवरी — डिलीवरी पर ${formatRupee(order.total_amount)} लेना है`)
+    if (isCodOnline(order)) {
+      lines.push(isPaid(order) ? `भुगतान: ऑनलाइन (UPI) मिल गया` : `भुगतान: डिलीवरी पर ऑनलाइन (UPI) — डिलीवरी पर ${formatRupee(order.total_amount)} लेना है`)
+    } else {
+      lines.push(isPaid(order) ? `भुगतान: कैश मिल गया` : `भुगतान: कैश ऑन डिलीवरी — डिलीवरी पर ${formatRupee(order.total_amount)} लेना है`)
+    }
   } else {
     lines.push(`भुगतान की स्थिति: ${order.payment_status}`)
   }
@@ -66,7 +70,9 @@ export function buildCustomerUpdateText(order, origin = '') {
       break
     case 'डिलीवरी के लिए निकल गया':
       lines.push(`आपका ऑर्डर ${no} डिलीवरी के लिए निकल गया है 🛵`)
-      if (isCod(order) && !isPaid(order)) lines.push(`कृपया डिलीवरी पर ${total} कैश तैयार रखें।`)
+      if (isCod(order) && !isPaid(order)) {
+        lines.push(isCodOnline(order) ? `कृपया डिलीवरी पर ${total} UPI से देने के लिए तैयार रहें (डिलीवरी बॉय QR दिखाएगा)।` : `कृपया डिलीवरी पर ${total} कैश तैयार रखें।`)
+      }
       break
     case 'सामान तैयार हो रहा है':
       lines.push(`आपका ऑर्डर ${no} तैयार किया जा रहा है 🧺`)

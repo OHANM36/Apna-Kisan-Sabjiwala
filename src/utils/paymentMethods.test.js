@@ -35,3 +35,15 @@ test('isCod / isPaid / paymentText', () => {
   assert.equal(paymentText({ payment_method: 'ऑनलाइन', payment_status: 'लंबित' }), 'लंबित', 'online unchanged')
   assert.equal(paymentText(undefined), '')
 })
+
+test('डिलीवरी पर ऑनलाइन (UPI): सिर्फ़ COD ऑर्डर पर, और COD जैसा ही व्यवहार', async () => {
+  const { isCodOnline } = await import('./paymentMethods.js')
+  const online = { payment_method: 'COD', cod_pay_mode: 'online', payment_status: 'लंबित' }
+  assert.equal(isCodOnline(online), true)
+  assert.equal(isCod(online), true, 'सर्वर पर यह COD ऑर्डर ही है')
+  assert.equal(isCodOnline({ payment_method: 'COD', cod_pay_mode: 'cash' }), false)
+  assert.equal(isCodOnline({ payment_method: 'COD' }), false, 'कॉलम न हो (पुराना ऑर्डर) तो कैश माना जाए')
+  assert.equal(isCodOnline({ payment_method: 'ऑनलाइन', cod_pay_mode: 'online' }), false, 'गैर-COD पर असर नहीं')
+  assert.match(paymentText(online), /ऑनलाइन भुगतान \(UPI\)/)
+  assert.equal(paymentText({ ...online, payment_status: 'सफल' }), 'ऑनलाइन (UPI) भुगतान मिल गया')
+})

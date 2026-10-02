@@ -6,6 +6,7 @@ import { formatRupee } from '../utils/format'
 import { SettingsPageSkeleton } from '../components/Skeleton'
 
 const MAX_COD_LIMIT = 100000
+const UPI_RE = /^[A-Za-z0-9._-]{2,256}@[A-Za-z0-9.-]{2,64}$/ // डेटाबेस की जाँच जैसी ही
 
 /**
  * भुगतान विकल्प — कैश ऑन डिलीवरी (COD) चालू/बंद + वैकल्पिक अधिकतम ऑर्डर-राशि।
@@ -22,6 +23,9 @@ export default function AdminPaymentSettings() {
   const [savedMax, setSavedMax] = useState(null)
   const [openCod, setOpenCod] = useState(null) // डिलीवरी बाकी COD ऑर्डर (सिर्फ़ जानकारी के लिए)
   const [busy, setBusy] = useState(false)
+  const [upiInput, setUpiInput] = useState('')
+  const [savedUpi, setSavedUpi] = useState('')
+  const [upiSupported, setUpiSupported] = useState(true) // false = pay_online_on_delivery.sql अभी नहीं चली
   const [msg, setMsg] = useState(null) // { ok, text }
 
   const applyRow = useCallback((row) => {
@@ -50,6 +54,16 @@ export default function AdminPaymentSettings() {
         .eq('payment_method', 'COD')
         .not('order_status', 'in', '("डिलीवरी पूरी हुई","रद्द")')
       setOpenCod(typeof count === 'number' ? count : null)
+
+      // दुकान का UPI ID (डिलीवरी पर ऑनलाइन भुगतान) — अलग क्वेरी, ताकि कॉलम न होने पर बाकी पेज न टूटे
+      const upi = await supabase.from('delivery_settings').select('shop_upi_id').eq('id', 1).maybeSingle()
+      if (!upi.error && upi.data) {
+        setUpiSupported(true)
+        setSavedUpi(upi.data.shop_upi_id || '')
+        setUpiInput(upi.data.shop_upi_id || '')
+      } else {
+        setUpiSupported(false)
+      }
     } catch (e) {
       console.error(e)
       setLoadError(
@@ -116,6 +130,35 @@ export default function AdminPaymentSettings() {
     save({ cod_max_order_value: Math.round(n * 100) / 100 }, `✅ COD अब ${formatRupee(n)} तक के ऑर्डर पर चालू रहेगा`)
   }
 
+  async function saveUpi(e) {
+    e.preventDefault()
+    if (busy) return
+    const v = upiInput.trim()
+    if (v !== '' && !UPI_RE.test(v)) {
+      setMsg({ ok: false, text: 'सही UPI ID डालें (जैसे dukaan@okaxis), या हटाने के लिए खाली छोड़ें।' })
+      return
+    }
+    setBusy(true)
+    setMsg(null)
+    try {
+      const { data, error } = await supabase.from('delivery_settings').update({ shop_upi_id: v === '' ? null : v }).eq('id', 1).select('shop_upi_id')
+      if (error) throw error
+      if (!data || data.length !== 1) throw new Error('NOT_ALLOWED')
+      setSavedUpi(data[0].shop_upi_id || '')
+      setUpiInput(data[0].shop_upi_id || '')
+      await reloadSettings()
+      setMsg({ ok: true, text: v === '' ? '✅ UPI ID हटा दिया गया' : `✅ UPI ID सेव हो गया: ${v}` })
+    } catch (err) {
+      console.error(err)
+      setMsg({
+        ok: false,
+        text: /NOT_ALLOWED/.test(String(err?.message)) ? 'यह बदलाव सिर्फ़ मालिक (owner) कर सकता है।' : 'सेव नहीं हो सका। इंटरनेट जाँचकर दोबारा कोशिश करें।',
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading) return <SettingsPageSkeleton rows={2} />
 
   return (
@@ -180,11 +223,42 @@ export default function AdminPaymentSettings() {
             </div>
           </form>
 
+          <form onSubmit={saveUpi} className="card p-4 mb-4">
+            <label htmlFor="shop-upi" className="block font-bold text-gray-800 text-sm mb-1">📲 दुकान का UPI ID (डिलीवरी पर ऑनलाइन भुगतान के लिए)</label>
+            <p className="text-xs text-gray-500 mb-3">
+              ग्राहक "डिलीवरी पर ऑनलाइन भुगतान (UPI)" चुने तो डिलीवरी बॉय के फ़ोन पर इसी UPI ID का QR खुलता है (राशि पहले से भरी हुई)। पैसा सीधे आपके UPI खाते में आता है।
+              {savedUpi && <> अभी: <b>{savedUpi}</b>।</>}
+            </p>
+            {!upiSupported ? (
+              <p className="text-xs text-orange-600 font-semibold">यह सुविधा चालू करने के लिए पहले Supabase SQL Editor में supabase/pay_online_on_delivery.sql चलाएँ।</p>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  id="shop-upi"
+                  className="input-field flex-1"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="जैसे dukaan@okaxis"
+                  value={upiInput}
+                  onChange={(e) => setUpiInput(e.target.value.replace(/\s/g, '').slice(0, 80))}
+                  disabled={busy || !isOwner}
+                />
+                <button type="submit" className="btn-primary px-5" disabled={busy || !isOwner}>
+                  {busy ? '...' : 'सेव'}
+                </button>
+              </div>
+            )}
+            {upiSupported && !savedUpi && (
+              <p className="text-xs text-orange-600 font-semibold mt-2">UPI ID खाली है — तब तक डिलीवरी बॉय को QR नहीं दिखेगा।</p>
+            )}
+          </form>
+
           <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl px-4 py-3 mb-4 leading-relaxed">
             <p className="font-bold mb-1">COD कैसे काम करता है</p>
             <ul className="list-disc pl-4 flex flex-col gap-0.5">
               <li>COD ऑर्डर बनते ही आपके पास आता है (भुगतान "लंबित") — पहले की तरह स्वीकार करें और डिलीवरी बॉय को दें।</li>
-              <li>डिलीवरी बॉय की सूची में "कैश लें ₹…" दिखता है।</li>
+              <li>डिलीवरी बॉय की सूची में "कैश लें ₹…" (या UPI चुना हो तो "UPI से लें ₹…" और QR) दिखता है।</li>
               <li>डिलीवरी पूरी होते ही भुगतान अपने-आप "सफल" दर्ज होता है और रिपोर्ट की बिक्री में जुड़ता है।</li>
               <li>बिना भुगतान वाले ऑनलाइन ऑर्डर की तरह COD ऑर्डर अपने-आप रद्द नहीं होते।</li>
               <li>सुरक्षा: एक IP से एक घंटे में 10 से ज़्यादा COD ऑर्डर नहीं बन सकते।</li>

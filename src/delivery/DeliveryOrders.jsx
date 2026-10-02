@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import { formatRupee, formatDate } from '../utils/format'
-import { isCod, isPaid } from '../utils/paymentMethods'
+import { isCod, isCodOnline, isPaid } from '../utils/paymentMethods'
+import { useSettings } from '../context/SettingsContext'
+import UpiQr, { buildUpiLink } from '../components/UpiQr'
 import { SkeletonWrap, ListCardsSkeleton } from '../components/Skeleton'
 
 const TABS = [
@@ -22,6 +24,8 @@ export default function DeliveryOrders() {
   const [confirmPin, setConfirmPin] = useState('')
   const [confirmError, setConfirmError] = useState('')
   const [notice, setNotice] = useState('')
+  const [qrOrder, setQrOrder] = useState(null)
+  const { settings } = useSettings()
 
   const loadOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -129,7 +133,7 @@ export default function DeliveryOrders() {
                   </span>
                   {isCod(o) && !isPaid(o) && (
                     <span className="block mt-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                      💵 कैश लें {formatRupee(o.total_amount)}
+                      {isCodOnline(o) ? '📲 UPI से लें' : '💵 कैश लें'} {formatRupee(o.total_amount)}
                     </span>
                   )}
                 </div>
@@ -184,9 +188,19 @@ export default function DeliveryOrders() {
               )}
 
               {tab === 'mine' && isCod(o) && !isPaid(o) && (
-                <p className="mt-2 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                  💵 ग्राहक से {formatRupee(o.total_amount)} कैश लें — पैसे लेने के बाद ही डिलीवरी पिन कन्फर्म करें।
-                </p>
+                <div className="mt-2 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  {isCodOnline(o) ? (
+                    <>
+                      <p>📲 ग्राहक ने UPI से देना चुना है — {formatRupee(o.total_amount)} का QR दिखाएँ। अपने फ़ोन/SMS में पैसे आने की पुष्टि देखकर ही डिलीवरी पिन कन्फर्म करें।</p>
+                      <button type="button" onClick={() => setQrOrder(o)} className="btn-outline w-full mt-2 py-2 text-sm">
+                        📲 QR दिखाएँ
+                      </button>
+                      <p className="text-[11px] font-semibold text-amber-700 mt-2">ग्राहक का मन बदल जाए तो कैश भी ले सकते हैं।</p>
+                    </>
+                  ) : (
+                    <p>💵 ग्राहक से {formatRupee(o.total_amount)} कैश लें — पैसे लेने के बाद ही डिलीवरी पिन कन्फर्म करें।</p>
+                  )}
+                </div>
               )}
               {tab === 'mine' && (
                 <button
@@ -210,6 +224,30 @@ export default function DeliveryOrders() {
         </div>
       )}
 
+      {qrOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center p-3" onClick={() => setQrOrder(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-extrabold text-lg text-gray-800">UPI से भुगतान</h2>
+              <button type="button" onClick={() => setQrOrder(null)} className="text-gray-400 text-2xl leading-none" aria-label="बंद करें">×</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">{qrOrder.order_number} — ग्राहक किसी भी UPI ऐप से स्कैन करे।</p>
+            {settings.shop_upi_id ? (
+              <>
+                <p className="text-center font-extrabold text-2xl text-kisan mb-3">{formatRupee(qrOrder.total_amount)}</p>
+                <UpiQr link={buildUpiLink({ upiId: settings.shop_upi_id, name: settings.business_name, amount: qrOrder.total_amount, note: qrOrder.order_number })} />
+                <p className="text-center text-xs text-gray-500 mt-3">UPI ID: <span className="font-mono font-bold text-gray-700">{settings.shop_upi_id}</span></p>
+              </>
+            ) : (
+              <p className="text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-xl px-3 py-3">
+                दुकान का UPI ID अभी सेट नहीं है। एडमिन से कहें कि वह एडमिन → भुगतान विकल्प में UPI ID डाले। तब तक ग्राहक से कैश लें।
+              </p>
+            )}
+            <button type="button" onClick={() => setQrOrder(null)} className="btn-outline w-full mt-4 py-2.5 text-sm">बंद करें</button>
+          </div>
+        </div>
+      )}
+
       {confirmOrder && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end md:items-center justify-center p-3">
           <form onSubmit={submitConfirmPin} className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl">
@@ -222,7 +260,9 @@ export default function DeliveryOrders() {
             </p>
             {isCod(confirmOrder) && !isPaid(confirmOrder) && (
               <p className="mb-4 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                💵 कन्फर्म करने से पहले ग्राहक से {formatRupee(confirmOrder.total_amount)} कैश ले लें।
+                {isCodOnline(confirmOrder)
+                  ? `📲 कन्फर्म करने से पहले ${formatRupee(confirmOrder.total_amount)} का UPI भुगतान अपने फ़ोन/SMS में आया हुआ देख लें (या कैश ले लें)।`
+                  : `💵 कन्फर्म करने से पहले ग्राहक से ${formatRupee(confirmOrder.total_amount)} कैश ले लें।`}
               </p>
             )}
             <input

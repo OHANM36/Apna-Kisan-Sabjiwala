@@ -4,7 +4,7 @@ import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, statusStepsFor, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
-import { isCod, isPaid, paymentText } from '../utils/paymentMethods'
+import { isCod, isCodOnline, isPaid, paymentText } from '../utils/paymentMethods'
 import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
 import { ListPageSkeleton } from '../components/Skeleton'
 
@@ -124,7 +124,7 @@ export default function AdminOrders() {
                 )}
                 {isCod(o) && (
                   <span className="inline-block mt-1 ml-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                    💵 कैश ऑन डिलीवरी
+                    {isCodOnline(o) ? '📲 डिलीवरी पर UPI' : '💵 कैश ऑन डिलीवरी'}
                   </span>
                 )}
               </div>

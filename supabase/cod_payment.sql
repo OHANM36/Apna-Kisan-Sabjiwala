@@ -258,6 +258,10 @@ begin
 end $$;
 
 
+-- डिलीवरी पर ऑनलाइन भुगतान (pay_online_on_delivery.sql) का कॉलम — नीचे के functions इसे पढ़ते हैं, इसलिए पहले से मौजूद रहे
+alter table orders add column if not exists cod_pay_mode text not null default 'cash'
+  check (cod_pay_mode in ('cash', 'online'));
+
 create or replace function delivery_orders(p_token text, p_tab text)
 returns jsonb language plpgsql security definer stable set search_path = public as $$
 declare v uuid := aks_delivery_boy_from_token(p_token);
@@ -266,7 +270,7 @@ begin
   return coalesce((
     select jsonb_agg(row_to_json(t)::jsonb order by t.created_at desc) from (
       select o.id, o.order_number, o.customer_name, o.customer_phone, o.full_address, o.mohalla, o.city, o.pincode,
-             o.delivery_time_slot, o.extra_notes, o.latitude, o.longitude, o.total_amount, o.payment_method, o.payment_status, o.order_status, o.created_at,
+             o.delivery_time_slot, o.extra_notes, o.latitude, o.longitude, o.total_amount, o.payment_method, o.cod_pay_mode, o.payment_status, o.order_status, o.created_at,
              coalesce((select jsonb_agg(jsonb_build_object('id', i.id, 'vegetable_name', i.vegetable_name,
                          'quantity', i.quantity, 'unit', i.unit, 'item_total', i.item_total))
                        from order_items i where i.order_id = o.id), '[]'::jsonb) as order_items
@@ -287,7 +291,7 @@ returns jsonb language sql security definer stable set search_path = public as $
       'order_number', o.order_number, 'customer_name', o.customer_name, 'customer_phone', o.customer_phone,
       'full_address', o.full_address, 'mohalla', o.mohalla, 'city', o.city, 'pincode', o.pincode,
       'delivery_date', o.delivery_date, 'delivery_time_slot', o.delivery_time_slot,
-      'payment_status', o.payment_status, 'payment_method', o.payment_method, 'order_status', o.order_status, 'created_at', o.created_at))
+      'payment_status', o.payment_status, 'payment_method', o.payment_method, 'cod_pay_mode', o.cod_pay_mode, 'order_status', o.order_status, 'created_at', o.created_at))
     order by o.created_at desc), '[]'::jsonb)
   from order_items i join orders o on o.id = i.order_id
   where auth.uid() is not null and i.seller_id = auth.uid();

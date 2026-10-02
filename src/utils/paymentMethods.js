@@ -4,6 +4,7 @@
 
 export const PAYMENT_ONLINE = 'online'
 export const PAYMENT_COD = 'cod'
+export const PAYMENT_COD_ONLINE = 'cod_online' // डिलीवरी पर ऑनलाइन (UPI/QR) — सर्वर पर यह भी payment_method='COD' ही है
 
 /**
  * इस ऑर्डर-राशि के लिए COD विकल्प उपलब्ध है या नहीं।
@@ -22,6 +23,11 @@ export function isCod(order) {
   return order?.payment_method === 'COD'
 }
 
+// डिलीवरी पर ऑनलाइन (UPI/QR) से देना है?
+export function isCodOnline(order) {
+  return isCod(order) && order?.cod_pay_mode === 'online'
+}
+
 // पैसा मिल चुका है? (ऑनलाइन: गेटवे से पुष्टि; COD: डिलीवरी पर कैश मिलने पर सर्वर 'सफल' करता है)
 export function isPaid(order) {
   return order?.payment_status === 'सफल'
@@ -29,6 +35,7 @@ export function isPaid(order) {
 
 // हिंदी-पैनलों (एडमिन/सेलर/व्हाट्सऐप/मेरे ऑर्डर) में भुगतान की स्थिति का टेक्स्ट
 export function paymentText(order) {
+  if (isCodOnline(order)) return isPaid(order) ? 'ऑनलाइन (UPI) भुगतान मिल गया' : 'डिलीवरी पर ऑनलाइन भुगतान (UPI) — डिलीवरी पर लेना है'
   if (isCod(order)) return isPaid(order) ? 'कैश मिल गया' : 'कैश ऑन डिलीवरी (डिलीवरी पर लेना है)'
   return order?.payment_status ?? ''
 }

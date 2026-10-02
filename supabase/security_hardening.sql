@@ -1,5 +1,5 @@
 -- ⚠️ नोट: place_order, delivery_orders, seller_order_lines, cancel_stale_unpaid_orders के COD-सहित संस्करण cod_payment.sql में हैं।
---    इस फ़ाइल को दोबारा चलाएँ तो उसके बाद cod_payment.sql भी चलाएँ, वरना COD बंद जैसा व्यवहार लौट आएगा।
+--    इस फ़ाइल को दोबारा चलाएँ तो उसके बाद cod_payment.sql और pay_online_on_delivery.sql भी चलाएँ, वरना COD बंद जैसा व्यवहार लौट आएगा।
 -- =========================================================
 -- अपना किसान सब्ज़ीवाला — SECURITY HARDENING (Production Audit के सुधार)
 --
