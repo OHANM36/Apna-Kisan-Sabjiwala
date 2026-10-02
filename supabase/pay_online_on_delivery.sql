@@ -16,8 +16,21 @@
 alter table orders add column if not exists cod_pay_mode text not null default 'cash'
   check (cod_pay_mode in ('cash', 'online'));
 
-alter table delivery_settings add column if not exists shop_upi_id text
-  check (shop_upi_id is null or shop_upi_id ~ '^[A-Za-z0-9._-]{2,256}@[A-Za-z0-9.-]{2,64}$');
+alter table delivery_settings add column if not exists shop_upi_id text;
+
+-- नोट: Postgres regex में दोहराव की सीमा 255 है ({2,256} से 'invalid repetition count(s)' त्रुटि आती थी)।
+-- पुरानी (गलत) जाँच हटाकर सही जाँच लगाएँ — दोबारा चलाना सुरक्षित है।
+do $$
+declare c record;
+begin
+  for c in select conname from pg_constraint
+           where conrelid = 'delivery_settings'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%shop_upi_id%'
+  loop
+    execute format('alter table delivery_settings drop constraint %I', c.conname);
+  end loop;
+  alter table delivery_settings add constraint delivery_settings_shop_upi_id_check
+    check (shop_upi_id is null or shop_upi_id ~ '^[A-Za-z0-9._-]{2,255}@[A-Za-z0-9.-]{2,64}$');
+end $$;
 
 -- 2. ग्राहक का चुनाव दर्ज करना — ऑर्डर का गोपनीय access_token सही हो तभी, और सिर्फ़ COD ऑर्डर पर,
 --    डिलीवरी के लिए निकलने से पहले तक। (place_order को छुआ नहीं गया।)

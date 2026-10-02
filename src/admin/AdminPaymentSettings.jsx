@@ -6,7 +6,7 @@ import { formatRupee } from '../utils/format'
 import { SettingsPageSkeleton } from '../components/Skeleton'
 
 const MAX_COD_LIMIT = 100000
-const UPI_RE = /^[A-Za-z0-9._-]{2,256}@[A-Za-z0-9.-]{2,64}$/ // डेटाबेस की जाँच जैसी ही
+const UPI_RE = /^[A-Za-z0-9._-]{2,255}@[A-Za-z0-9.-]{2,64}$/ // डेटाबेस की जाँच जैसी ही
 
 // असली कारण पहचानने के लिए: Supabase की त्रुटि को साफ़ हिंदी संदेश में बदलें (कारण छिपाएँ नहीं)
 function saveErrorText(err) {
