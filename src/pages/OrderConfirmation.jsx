@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient'
 import { useSettings } from '../context/SettingsContext'
 import { buildWhatsAppOrderLink } from '../utils/whatsapp'
 import { formatRupee, formatDate, statusStepsFor } from '../utils/format'
+import { useOrderItemNames } from '../utils/orderItemNames'
 import Header from '../components/Header'
 import { getOrderToken, saveMyOrder } from '../utils/myOrders'
 import { startOnlinePayment } from '../utils/payment'
@@ -18,6 +19,7 @@ export default function OrderConfirmation() {
   const { t, tStatus, tUnit, tTimeSlot, language } = useLanguage()
   const [order, setOrder] = useState(null)
   const [items, setItems] = useState([])
+  const itemName = useOrderItemNames(items, language)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [paying, setPaying] = useState(false)
@@ -169,7 +171,7 @@ export default function OrderConfirmation() {
             {items.map((i) => (
               <div key={i.id} className="flex justify-between text-sm items-start">
                 <div>
-                  <span className="text-gray-600">{i.vegetable_name} x {i.quantity} {tUnit(i.unit)}</span>
+                  <span className="text-gray-600">{itemName(i)} x {i.quantity} {tUnit(i.unit)}</span>
                   {i.seller_name && <p className="text-[11px] text-gray-400 font-semibold">🧑‍🌾 {i.seller_name}</p>}
                 </div>
                 <span className="font-semibold text-gray-800">{formatRupee(i.item_total)}</span>

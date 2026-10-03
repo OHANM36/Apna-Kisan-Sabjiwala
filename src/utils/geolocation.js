@@ -1,4 +1,4 @@
-import { bi } from './translations.js'
+import { bi, currentLanguage } from './translations.js'
 /**
  * ब्राउज़र की GPS लोकेशन लेकर पते में बदलता है (OpenStreetMap Nominatim - मुफ़्त, बिना API key)
  */
@@ -23,25 +23,27 @@ export function getCurrentPosition() {
 }
 
 export async function reverseGeocode(lat, lng) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'hi,en' },
-  })
+  // पता ग्राहक की चुनी भाषा में मांगें (English मोड में English नाम, वरना हिंदी; जहाँ नाम उपलब्ध न हो वहाँ दूसरी भाषा)
+  const lang = currentLanguage() === 'en' ? 'en' : 'hi,en'
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=${encodeURIComponent(lang)}`
+  const res = await fetch(url)
   if (!res.ok) throw new Error('पता नहीं मिल सका')
   const data = await res.json()
   const a = data.address || {}
 
-  const addressParts = [a.house_number, a.road || a.neighbourhood].filter(Boolean)
   const mohalla = a.suburb || a.neighbourhood || a.city_district || ''
   const city = a.city || a.town || a.village || a.county || ''
   const pincode = a.postcode || ''
 
-  return {
-    fullAddress: addressParts.join(', ') || data.display_name || '',
-    mohalla,
-    city,
-    pincode,
+  let fullAddress = [a.house_number, a.road || a.neighbourhood].filter(Boolean).join(', ')
+  if (!fullAddress && data.display_name) {
+    // सड़क/मकान का नाम न मिलने पर पूरा display_name लौटता है — उसमें राज्य/देश/पिन और वे हिस्से हटाएँ
+    // जो मोहल्ला/शहर/पिनकोड के अलग खानों में पहले से भरे हैं (दोहराव और भाषा-मिलावट कम)
+    const drop = new Set([a.state, a.country, a.postcode, mohalla, city].filter(Boolean))
+    fullAddress = data.display_name.split(', ').filter((part) => !drop.has(part)).join(', ')
   }
+
+  return { fullAddress, mohalla, city, pincode }
 }
 
 /**
