@@ -39,7 +39,16 @@ export default function AdminOrders() {
     setLoading(false)
   }
 
-  async function updateStatus(orderId, newStatus) {
+  async function updateStatus(order, newStatus) {
+    const orderId = order.id
+    // ऑनलाइन ऑर्डर का पैसा नहीं आया हो तो आगे बढ़ाने से पहले पूछें (COD में पैसा डिलीवरी पर आता है)
+    if (!isCod(order) && !isPaid(order) && newStatus !== 'नया ऑर्डर' && newStatus !== 'रद्द') {
+      const state = order.payment_status === 'असफल' ? 'असफल' : 'बाकी'
+      if (!confirm(`इस ऑर्डर का ऑनलाइन भुगतान अभी ${state} है।\nफिर भी स्थिति "${newStatus}" करें?`)) {
+        loadOrders()
+        return
+      }
+    }
     const { error } = await supabase.from('orders').update({ order_status: newStatus }).eq('id', orderId)
     if (error) {
       alert(/INVALID_TRANSITION/.test(error.message || '')
@@ -190,7 +199,7 @@ export default function AdminOrders() {
               <label className="text-xs font-semibold text-gray-500">ऑर्डर की स्थिति बदलें:</label>
               <select
                 value={o.order_status}
-                onChange={(e) => updateStatus(o.id, e.target.value)}
+                onChange={(e) => updateStatus(o, e.target.value)}
                 className="input-field mt-1 text-sm py-2"
               >
                 {[...statusStepsFor(o), 'रद्द'].map((s) => (

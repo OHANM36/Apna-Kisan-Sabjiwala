@@ -137,12 +137,21 @@ export default function OrderConfirmation() {
         <div className="card p-4 mb-4">
           <h3 className="font-bold text-gray-700 text-sm mb-3">{t('order_status_title')}</h3>
           <div className="flex flex-col gap-3">
-            {statusSteps.map((step, idx) => (
-              <div key={step} className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full shrink-0 ${idx <= currentStepIndex ? 'bg-kisan' : 'bg-gray-200'}`} />
-                <span className={`text-sm ${idx <= currentStepIndex ? 'text-gray-800 font-semibold' : 'text-gray-400'}`}>{tStatus(step)}</span>
-              </div>
-            ))}
+            {statusSteps.map((step, idx) => {
+              // "भुगतान सफल" चरण तभी पूरा दिखे जब पैसा सच में आया हो (payment_status = सफल)
+              const unpaidStep = step === 'भुगतान सफल' && !paid
+              const reached = idx <= currentStepIndex && !unpaidStep
+              const showPending = unpaidStep && idx <= currentStepIndex && !cancelled
+              const label = showPending
+                ? (order.payment_status === 'असफल' ? `${t('order_payment_status')}: ${tStatus('असफल')}` : t('order_payment_due'))
+                : tStatus(step)
+              return (
+                <div key={step} className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full shrink-0 ${reached ? 'bg-kisan' : showPending ? 'bg-orange-400' : 'bg-gray-200'}`} />
+                  <span className={`text-sm ${reached ? 'text-gray-800 font-semibold' : showPending ? 'text-orange-600 font-semibold' : 'text-gray-400'}`}>{label}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
