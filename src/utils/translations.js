@@ -74,6 +74,7 @@ const translations = {
   checkout_phone_placeholder: { hi: '10 अंकों का मोबाइल नंबर', en: '10-digit mobile number' },
   checkout_use_location: { hi: 'मेरी वर्तमान लोकेशन का उपयोग करें', en: 'Use my current location' },
   checkout_locating: { hi: 'लोकेशन ढूंढी जा रही है...', en: 'Finding location...' },
+  checkout_location_autofilled: { hi: 'आपकी लोकेशन से पता भरा गया है — कृपया मकान नंबर और लैंडमार्क जोड़ें/जाँचें।', en: 'Address filled from your location — please add/check house number and landmark.' },
   checkout_address: { hi: 'पूरा पता', en: 'Full Address' },
   checkout_address_placeholder: { hi: 'मकान नंबर, गली नंबर आदि', en: 'House no., street no., etc.' },
   checkout_mohalla: { hi: 'मोहल्ला / कॉलोनी', en: 'Neighborhood / Colony' },

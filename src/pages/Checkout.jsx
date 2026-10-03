@@ -58,26 +58,62 @@ export default function Checkout() {
   const [locationError, setLocationError] = useState('')
   const [payMethod, setPayMethod] = useState(PAYMENT_ONLINE) // डिफ़ॉल्ट ऑनलाइन — COD ग्राहक खुद चुने
 
-  async function handleUseCurrentLocation() {
+  const [locationNote, setLocationNote] = useState('')
+
+  // auto=true: पेज खुलते ही अपने-आप — ग्राहक का लिखा कुछ नहीं बदलता (सिर्फ़ खाली खाने भरता है) और चुपचाप विफल होता है।
+  // auto=false: बटन दबाने पर — पता नई लोकेशन से बदल देता है।
+  async function handleUseCurrentLocation(auto = false) {
     setLocating(true)
     setLocationError('')
+    setLocationNote('')
     try {
       const loc = await getCurrentLocationAddress()
-      setForm((f) => ({
-        ...f,
-        address: loc.fullAddress || f.address,
-        mohalla: loc.mohalla || f.mohalla,
-        city: loc.city || f.city,
-        pincode: loc.pincode || f.pincode,
-        latitude: loc.lat,
-        longitude: loc.lng,
-      }))
+      setForm((f) => auto
+        ? {
+            ...f,
+            address: f.address.trim() ? f.address : (loc.fullAddress || f.address),
+            mohalla: f.mohalla.trim() ? f.mohalla : (loc.mohalla || f.mohalla),
+            city: f.city.trim() && f.city !== 'Bhopal' ? f.city : (loc.city || f.city),
+            pincode: f.pincode.trim() ? f.pincode : (loc.pincode || f.pincode),
+            latitude: f.address.trim() ? f.latitude : loc.lat,
+            longitude: f.address.trim() ? f.longitude : loc.lng,
+          }
+        : {
+            ...f,
+            address: loc.fullAddress || f.address,
+            mohalla: loc.mohalla || f.mohalla,
+            city: loc.city || f.city,
+            pincode: loc.pincode || f.pincode,
+            latitude: loc.lat,
+            longitude: loc.lng,
+          })
+      setLocationNote(t('checkout_location_autofilled'))
     } catch (err) {
-      setLocationError(typeof err === 'string' ? err : t('err_location_failed'))
+      if (!auto) setLocationError(typeof err === 'string' ? err : t('err_location_failed'))
     } finally {
       setLocating(false)
     }
   }
+
+  // पहली बार पेज खुलने पर, अगर पता खाली है और लोकेशन की अनुमति "मना" नहीं है — तो पता अपने-आप भरें
+  const autoLocTried = useRef(false)
+  useEffect(() => {
+    if (autoLocTried.current) return
+    autoLocTried.current = true
+    if (savedCustomer.address) return // लौटते ग्राहक का सेव पता न छेड़ें (दूसरी जगह से ऑर्डर करने पर गलत पिन न बने)
+    ;(async () => {
+      try {
+        if (navigator.permissions?.query) {
+          const st = await navigator.permissions.query({ name: 'geolocation' })
+          if (st.state === 'denied') return
+        }
+      } catch {
+        /* पुराने ब्राउज़र में permissions API नहीं — सीधे कोशिश करें */
+      }
+      handleUseCurrentLocation(true)
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { fee: deliveryFee } = calculateDeliveryFee(subtotal, deliveryRules, settings)
   const total = Math.max(0, subtotal + deliveryFee - discount)
@@ -309,7 +345,7 @@ export default function Checkout() {
           <div>
             <button
               type="button"
-              onClick={handleUseCurrentLocation}
+              onClick={() => handleUseCurrentLocation(false)}
               disabled={locating}
               className="w-full flex items-center justify-center gap-2 border-2 border-kisan text-kisan font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-60"
             >
@@ -317,6 +353,7 @@ export default function Checkout() {
               {locating ? t('checkout_locating') : t('checkout_use_location')}
             </button>
             {locationError && <p className="text-red-500 text-xs mt-1.5 font-semibold">{locationError}</p>}
+            {locationNote && !locationError && <p className="text-kisan text-xs mt-1.5 font-semibold">📍 {locationNote}</p>}
           </div>
 
           <Field label={t('checkout_address')} error={errors.address}>
