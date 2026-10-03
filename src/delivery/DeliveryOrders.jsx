@@ -84,12 +84,12 @@ const CHECK = ['M20 6L9 17l-5-5']
 const QR = ['M3 3h7v7H3z', 'M14 3h7v7h-7z', 'M3 14h7v7H3z', 'M14 14h3v3h-3z', 'M20 14v7h-3', 'M14 20h0']
 
 // ---------- भुगतान पिल: 1–2 सेकंड में समझ आए ----------
-function PaymentPill({ o }) {
+function PaymentPill({ o, compact = false }) {
   if (isCod(o) && !isPaid(o)) {
     const upi = isCodOnline(o)
     return (
       <div
-        className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 border"
+        className={`flex items-center justify-between gap-3 rounded-2xl px-4 ${compact ? 'py-2' : 'py-3'} border`}
         style={upi
           ? { background: '#fffbeb', borderColor: '#fde68a' }
           : { background: '#f7fee7', borderColor: '#d9f99d' }}
@@ -102,7 +102,7 @@ function PaymentPill({ o }) {
     )
   }
   return (
-    <div className="flex items-center gap-2 rounded-2xl px-4 py-3 border" style={{ background: '#ecfdf3', borderColor: '#bbf7d0' }}>
+    <div className={`flex items-center gap-2 rounded-2xl px-4 ${compact ? 'py-2' : 'py-3'} border`} style={{ background: '#ecfdf3', borderColor: '#bbf7d0' }}>
       <span className="text-green-700"><Icon d={CHECK} size={16} /></span>
       <p className="font-semibold text-[14px] text-green-800">
         {isCod(o) ? 'भुगतान मिल चुका है' : 'ऑनलाइन भुगतान हो चुका — कुछ लेना नहीं'}
@@ -111,25 +111,65 @@ function PaymentPill({ o }) {
   )
 }
 
+// ---------- दूरी / क्रम / रास्ते की सारी जानकारी एक ही पंक्ति में ----------
+function infoLine({ distance, route, stop }) {
+  const parts = []
+  if (distance) parts.push(distance.known ? `📏 ${distance.short} दूर` : `📏 ${distance.text}`)
+  if (stop) {
+    if (stop.legKm == null) parts.push('🧭 क्रम तय नहीं (लोकेशन नहीं)')
+    // स्टॉप 1 की "आपसे दूरी" वही है जो ऊपर 📏 में आ चुकी — दोहराएँ नहीं
+    else if (!(stop.n === 1 && distance?.known)) parts.push(`🧭 ${stop.n === 1 ? 'आपसे' : 'पिछले स्टॉप से'} ${formatDistanceHi(stop.legKm)}`)
+  }
+  if (route?.near) parts.push(`🛣️ ${shortNumber(route.near.order.order_number)} के रास्ते में (${formatDistanceHi(route.near.km)})`)
+  if (route?.others > 0) parts.push(`📍 पास में ${route.others} और ऑर्डर`)
+  return parts.join('  •  ')
+}
+
+// ---------- छोटा कार्ड: "मेरी डिलीवरी" में अगले स्टॉप के बाद वाले (टैप करने पर पूरा खुलता है) ----------
+function CompactCard({ o, stop, distance, onOpen }) {
+  const needsCollect = isCod(o) && !isPaid(o)
+  const pay = needsCollect ? (isCodOnline(o) ? '💳 UPI लेना है' : '💵 CASH लेना है') : '✓ चुकता'
+  const sub = [`🕒 ${o.delivery_time_slot}`]
+  if (distance?.known) sub.push(`📏 ${distance.short}`)
+  else if (stop?.legKm != null) sub.push(`🧭 ${formatDistanceHi(stop.legKm)}`)
+  return (
+    <article className="dp-card !py-3">
+      <button type="button" onClick={onOpen} aria-label={`${shortNumber(o.order_number)} ${o.customer_name} — पूरा कार्ड खोलें`} className="w-full text-left flex items-center justify-between gap-3 min-h-[44px]">
+        <div className="min-w-0">
+          <p className="font-bold text-[15px] text-gray-900 truncate">
+            {stop && <span className="dp-chip mr-2" style={{ background: '#166534', color: '#fff' }}>स्टॉप {stop.n}</span>}
+            {shortNumber(o.order_number)} • {o.customer_name}
+          </p>
+          <p className="text-[13px] text-gray-600 mt-0.5 truncate">{sub.join('  •  ')}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-bold text-[17px] leading-tight text-gray-900">{formatRupee(o.total_amount)}</p>
+          <p className="text-[12px] font-semibold mt-0.5" style={{ color: needsCollect ? '#92400e' : '#166534' }}>{pay} ▾</p>
+        </div>
+      </button>
+    </article>
+  )
+}
+
 // ---------- ऑर्डर कार्ड ----------
-function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr, distance, route, stop }) {
+function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr, distance, route, stop, onCollapse }) {
   const needsCollect = isCod(o) && !isPaid(o)
   const upi = isCodOnline(o)
   const chip = tab === 'available'
     ? { text: 'उपलब्ध', bg: '#eff6ff', fg: '#1d4ed8' }
     : { text: '● रास्ते में', bg: '#fff7ed', fg: '#c2410c' }
+  const info = infoLine({ distance, route, stop })
 
   return (
     <article className="dp-card">
-      {/* हेडर */}
+      {/* हेडर: क्या करना है (स्टॉप / नंबर), कब (स्लॉट), कितना (राशि) */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-bold text-[16px] leading-tight text-gray-900">
             {stop && <span className="dp-chip mr-2" style={{ background: '#166534', color: '#fff' }}>स्टॉप {stop.n}</span>}
             {shortNumber(o.order_number)}
           </p>
-          <p className="text-[14px] font-semibold text-gray-700 mt-1">🕒 डिलीवरी: {o.delivery_time_slot}</p>
-          <p className="text-[12px] text-gray-500 mt-0.5">ऑर्डर: {orderPlacedText(o.created_at)} • {agoText(o.created_at)}</p>
+          <p className="text-[14px] font-semibold text-gray-700 mt-1">🕒 {o.delivery_time_slot}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="font-bold text-[20px] leading-tight text-gray-900">{formatRupee(o.total_amount)}</p>
@@ -137,61 +177,25 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr,
         </div>
       </div>
 
-      {/* ग्राहक */}
-      <div className="mt-3 text-[14px] text-gray-800 flex flex-col gap-0.5">
-        <p className="font-semibold">👤 {o.customer_name}</p>
-        <a href={`tel:${o.customer_phone}`} className="text-gray-600 inline-flex items-center min-h-[32px] w-fit">📞 {o.customer_phone}</a>
-        {distance && (
-          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: distance.known ? '#eff6ff' : '#f3f4f6', color: distance.known ? '#1d4ed8' : '#6b7280' }}>
-            📏 {distance.text}
-          </p>
-        )}
-        {stop && (
-          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#f0fdf4', color: '#166534' }}>
-            🧭 {stop.legKm == null ? 'लोकेशन नहीं मिली — इस स्टॉप का क्रम तय नहीं'
-              : `${stop.n === 1 ? 'आपसे' : 'पिछले स्टॉप से'} लगभग ${formatDistanceHi(stop.legKm)} दूर`}
-          </p>
-        )}
-        {route?.near && (
-          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#ecfdf3', color: '#166534' }}>
-            🛣️ आपकी डिलीवरी {shortNumber(route.near.order.order_number)} के रास्ते में — सिर्फ़ {formatDistanceHi(route.near.km)} दूर, साथ ले जा सकते हैं
-          </p>
-        )}
-        {route?.others > 0 && (
-          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#fff7ed', color: '#c2410c' }}>
-            📍 पास में {route.others} और ऑर्डर उपलब्ध — एक साथ ले सकते हैं
-          </p>
-        )}
+      {/* ग्राहक: नाम + फ़ोन एक पंक्ति में */}
+      <div className="mt-2 text-[14px] text-gray-800 flex items-center flex-wrap gap-x-4">
+        <span className="font-semibold">👤 {o.customer_name}</span>
+        <a href={`tel:${o.customer_phone}`} className="text-gray-600 inline-flex items-center min-h-[36px]">📞 {o.customer_phone}</a>
       </div>
 
+      {/* दूरी / क्रम / रास्ता — एक ही पंक्ति */}
+      {info && (
+        <p className="mt-1 text-[13px] font-semibold rounded-xl px-3 py-1.5 leading-snug" style={{ background: '#f0f9ff', color: '#075985' }}>{info}</p>
+      )}
+
       {/* भुगतान */}
-      <div className="mt-3"><PaymentPill o={o} /></div>
+      <div className="mt-2"><PaymentPill o={o} compact /></div>
 
       {/* कॉल + मार्ग */}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <a href={`tel:${o.customer_phone}`} className="dp-btn dp-btn-outline"><Icon d={PHONE} /> कॉल करें</a>
         <a href={mapsHref(o)} target="_blank" rel="noreferrer" className="dp-btn dp-btn-outline"><Icon d={NAV} /> मार्ग देखें</a>
       </div>
-
-      {/* विवरण (पता + सामान) */}
-      <button type="button" onClick={onToggle} aria-expanded={expanded} className="w-full min-h-[44px] mt-1 text-[13px] font-semibold text-gray-500 flex items-center justify-center gap-1">
-        {expanded ? 'विवरण छुपाएँ ▲' : 'पता और सामान देखें ▼'}
-      </button>
-      {expanded && (
-        <div className="pt-3 border-t border-gray-100 text-[13px] text-gray-600">
-          <p className="mb-2">{o.full_address}{o.mohalla ? `, ${o.mohalla}` : ''}, {o.city} - {o.pincode}</p>
-          <div className="flex flex-col gap-1">
-            {o.order_items.map((i) => (
-              <div key={i.id} className="flex justify-between gap-3">
-                <span>{i.vegetable_name} × {i.quantity} {i.unit}</span>
-                <span className="shrink-0">{formatRupee(i.item_total)}</span>
-              </div>
-            ))}
-          </div>
-          {o.extra_notes && <p className="mt-2">📝 {o.extra_notes}</p>}
-          <p className="mt-2 text-[12px] text-gray-400 break-all">ऑर्डर नं.: {o.order_number}</p>
-        </div>
-      )}
 
       {/* UPI: QR बटन (QR बॉटम-शीट में खुलता है) */}
       {tab === 'mine' && needsCollect && upi && (
@@ -216,6 +220,34 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr,
         <button type="button" onClick={onDeliver} disabled={busy} className="dp-btn dp-btn-primary mt-3">
           {busy ? 'सेव हो रहा है…' : <><Icon d={CHECK} /> डिलीवरी पूरी करें</>}
         </button>
+      )}
+
+      {/* विवरण (पता + सामान + ऑर्डर का समय) — मुख्य काम के नीचे */}
+      <div className={`mt-1 grid gap-2 ${onCollapse ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <button type="button" onClick={onToggle} aria-expanded={expanded} className="w-full min-h-[44px] text-[13px] font-semibold text-gray-500 flex items-center justify-center gap-1">
+          {expanded ? 'विवरण छुपाएँ ▲' : 'पता और सामान देखें ▼'}
+        </button>
+        {onCollapse && (
+          <button type="button" onClick={onCollapse} className="w-full min-h-[44px] text-[13px] font-semibold text-gray-500 flex items-center justify-center gap-1">
+            कार्ड छोटा करें ▲
+          </button>
+        )}
+      </div>
+      {expanded && (
+        <div className="pt-3 border-t border-gray-100 text-[13px] text-gray-600">
+          <p className="mb-2">{o.full_address}{o.mohalla ? `, ${o.mohalla}` : ''}, {o.city} - {o.pincode}</p>
+          <div className="flex flex-col gap-1">
+            {o.order_items.map((i) => (
+              <div key={i.id} className="flex justify-between gap-3">
+                <span>{i.vegetable_name} × {i.quantity} {i.unit}</span>
+                <span className="shrink-0">{formatRupee(i.item_total)}</span>
+              </div>
+            ))}
+          </div>
+          {o.extra_notes && <p className="mt-2">📝 {o.extra_notes}</p>}
+          <p className="mt-2 text-[12px] text-gray-500">ऑर्डर: {orderPlacedText(o.created_at)} • {agoText(o.created_at)}</p>
+          <p className="mt-1 text-[12px] text-gray-400 break-all">ऑर्डर नं.: {o.order_number}</p>
+        </div>
       )}
     </article>
   )
@@ -275,6 +307,8 @@ export default function DeliveryOrders() {
   const [myPos, setMyPos] = useState(null)
   const [posStatus, setPosStatus] = useState('idle') // idle | locating | ok | error
   const [suggestOrder, setSuggestOrder] = useState(() => safeGet(STOPS_KEY) === '1')
+  const [optionsOpen, setOptionsOpen] = useState(false)
+  const [openId, setOpenId] = useState(null) // "मेरी डिलीवरी" में खोला गया छोटा कार्ड
   const [routeOnly, setRouteOnly] = useState(false) // "उपलब्ध" टैब में सिर्फ़ रास्ते वाले ऑर्डर
 
   const showToast = useCallback((message, type = 'ok') => {
@@ -335,10 +369,10 @@ export default function DeliveryOrders() {
   // हर ऑर्डर के लिए दिखाने का टेक्स्ट (null = विकल्प बंद)
   function distanceFor(o) {
     if (!showDistance) return null
-    if (!(o.latitude && o.longitude)) return { known: false, text: 'दूरी उपलब्ध नहीं — ग्राहक की GPS लोकेशन नहीं मिली' }
+    if (!(o.latitude && o.longitude)) return { known: false, text: 'दूरी उपलब्ध नहीं (ग्राहक की GPS लोकेशन नहीं)' }
     if (!myPos) return { known: false, text: posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही' : 'दूरी निकाली जा रही है…' }
     const km = distanceKm(myPos, { lat: o.latitude, lng: o.longitude })
-    return km == null ? null : { known: true, text: `ग्राहक आपसे लगभग ${formatDistanceHi(km)} दूर (सीधी दूरी)` }
+    return km == null ? null : { known: true, short: formatDistanceHi(km), text: `ग्राहक आपसे लगभग ${formatDistanceHi(km)} दूर (सीधी दूरी)` }
   }
 
   // वही RPC (delivery_orders), तीनों टैब एक साथ — ताकि ऊपर का सारांश और टैब की गिनती सही रहे
@@ -463,6 +497,25 @@ export default function DeliveryOrders() {
     return { active: data.mine.length, done: data.done.length, collect }
   }, [data])
 
+  const optionRows = [
+    {
+      key: 'distance', on: showDistance, toggle: toggleDistance, title: '📏 ग्राहक से दूरी दिखाएँ',
+      hint: !showDistance ? 'चालू करने पर आपकी लोकेशन से हर ऑर्डर की दूरी दिखेगी'
+        : posStatus === 'ok' ? 'आपकी लोकेशन मिल गई — सीधी (हवाई) दूरी, सड़क से कुछ ज़्यादा होगी'
+        : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
+        : 'आपकी लोकेशन ढूँढी जा रही है…',
+    },
+    {
+      key: 'stops', on: suggestOrder, toggle: toggleSuggestOrder, title: '🧭 डिलीवरी का सुझाया क्रम',
+      hint: !suggestOrder ? '"मेरी डिलीवरी" में बताएगा कि पहले किस ग्राहक के पास जाएँ (सबसे छोटा रास्ता)'
+        : posStatus === 'ok' ? 'पहले स्लॉट का समय, फिर सबसे पास वाला — सीधी दूरी के हिसाब से अंदाज़ा'
+        : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
+        : 'आपकी लोकेशन ढूँढी जा रही है…',
+    },
+  ]
+  // सुझाया क्रम चालू हो तो पहला (अगला स्टॉप) पूरा कार्ड, बाकी छोटे — टैप करने पर खुलते हैं
+  const compactMine = tab === 'mine' && !!stops && stops.length > 1
+
   const list = tab === 'available' && routeOnly
     ? data.available.filter((o) => routeInfo.has(o.id))
     : tab === 'mine' && stops
@@ -472,52 +525,23 @@ export default function DeliveryOrders() {
 
   return (
     <div>
-      <div className="dp-wrap pt-4">
-        <h1 className="text-[22px] font-bold leading-tight text-gray-900">नमस्ते, {firstName} 👋</h1>
-        <p className="text-[14px] text-gray-500 mt-1">आज की डिलीवरी</p>
-
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <div className="dp-stat"><p className="text-[18px] font-bold leading-tight text-gray-900">{stats.active}</p><p className="text-[12px] text-gray-500 mt-0.5">बाकी</p></div>
-          <div className="dp-stat"><p className="text-[18px] font-bold leading-tight text-gray-900">{stats.done}</p><p className="text-[12px] text-gray-500 mt-0.5">पूरी हुई</p></div>
-          <div className="dp-stat" style={{ background: '#fffbeb', borderColor: '#fde68a' }}><p className="text-[18px] font-bold leading-tight" style={{ color: '#92400e' }}>{formatRupee(stats.collect)}</p><p className="text-[12px] mt-0.5" style={{ color: '#92400e' }}>लेना है</p></div>
+      <div className="dp-wrap pt-3">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[20px] font-bold leading-tight text-gray-900">नमस्ते, {firstName} 👋</h1>
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(true)}
+            className="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-full border border-gray-200 bg-white text-[14px] font-semibold text-gray-700 active:scale-95 transition-transform"
+          >
+            ⚙️ विकल्प
+            {(showDistance || suggestOrder) && <span className="w-2 h-2 rounded-full bg-green-600" role="img" aria-label="चालू" />}
+          </button>
         </div>
-      </div>
 
-      <div className="dp-wrap mt-3">
-        <div className="rounded-2xl border border-gray-200 bg-white divide-y divide-gray-100">
-          {[
-            {
-              key: 'distance', on: showDistance, toggle: toggleDistance, title: '📏 ग्राहक से दूरी दिखाएँ',
-              hint: !showDistance ? 'चालू करने पर आपकी लोकेशन से हर ऑर्डर की दूरी दिखेगी'
-                : posStatus === 'ok' ? 'आपकी लोकेशन मिल गई — सीधी (हवाई) दूरी, सड़क से कुछ ज़्यादा होगी'
-                : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
-                : 'आपकी लोकेशन ढूँढी जा रही है…',
-            },
-            {
-              key: 'stops', on: suggestOrder, toggle: toggleSuggestOrder, title: '🧭 डिलीवरी का सुझाया क्रम',
-              hint: !suggestOrder ? '"मेरी डिलीवरी" में बताएगा कि पहले किस ग्राहक के पास जाएँ (सबसे छोटा रास्ता)'
-                : posStatus === 'ok' ? 'पहले स्लॉट का समय, फिर सबसे पास वाला — सीधी दूरी के हिसाब से अंदाज़ा'
-                : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
-                : 'आपकी लोकेशन ढूँढी जा रही है…',
-            },
-          ].map((r) => (
-            <div key={r.key} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-gray-800">{r.title}</p>
-                <p className="text-[12px] text-gray-500 mt-0.5">{r.hint}</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={r.on}
-                aria-label={r.title}
-                onClick={r.toggle}
-                className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${r.on ? 'bg-green-700' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${r.on ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-          ))}
+        <div className="grid grid-cols-3 mt-2 rounded-2xl border border-gray-200 bg-white overflow-hidden text-center">
+          <div className="py-2"><span className="text-[17px] font-bold text-gray-900">{stats.active}</span> <span className="text-[12px] text-gray-500">बाकी</span></div>
+          <div className="py-2 border-x border-gray-200"><span className="text-[17px] font-bold text-gray-900">{stats.done}</span> <span className="text-[12px] text-gray-500">पूरी हुई</span></div>
+          <div className="py-2" style={{ background: '#fffbeb', color: '#92400e' }}><span className="text-[17px] font-bold">{formatRupee(stats.collect)}</span> <span className="text-[12px]">लेना है</span></div>
         </div>
       </div>
 
@@ -574,10 +598,13 @@ export default function DeliveryOrders() {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {list.map((o) =>
-              tab === 'done' ? (
-                <DoneCard key={o.id} o={o} />
-              ) : (
+            {list.map((o, idx) => {
+              if (tab === 'done') return <DoneCard key={o.id} o={o} />
+              const stopInfo = tab === 'mine' ? stopById.get(o.id) : null
+              if (compactMine && idx > 0 && openId !== o.id) {
+                return <CompactCard key={o.id} o={o} stop={stopInfo} distance={distanceFor(o)} onOpen={() => setOpenId(o.id)} />
+              }
+              return (
                 <OrderCard
                   key={o.id}
                   o={o}
@@ -590,13 +617,47 @@ export default function DeliveryOrders() {
                   onQr={() => setQrOrder(o)}
                   distance={distanceFor(o)}
                   route={tab === 'available' ? routeInfo.get(o.id) : null}
-                  stop={tab === 'mine' ? stopById.get(o.id) : null}
+                  stop={stopInfo}
+                  onCollapse={compactMine && idx > 0 ? () => setOpenId(null) : null}
                 />
               )
-            )}
+            })}
           </div>
         )}
       </div>
+
+      {/* विकल्प बॉटम-शीट: दूरी / सुझाया क्रम के स्विच */}
+      {optionsOpen && (
+        <div className="dp-sheet-back" onClick={() => setOptionsOpen(false)}>
+          <div className="dp-sheet" role="dialog" aria-modal="true" aria-label="विकल्प" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-bold text-[18px] text-gray-900">विकल्प</h2>
+              <button type="button" onClick={() => setOptionsOpen(false)} className="dp-iconbtn -mt-2 -mr-2 text-2xl" aria-label="बंद करें">×</button>
+            </div>
+            <div className="mt-2 divide-y divide-gray-100">
+              {optionRows.map((r) => (
+                <div key={r.key} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold text-gray-800">{r.title}</p>
+                    <p className="text-[12px] text-gray-500 mt-0.5">{r.hint}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={r.on}
+                    aria-label={r.title}
+                    onClick={r.toggle}
+                    className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${r.on ? 'bg-green-700' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${r.on ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="dp-btn dp-btn-outline mt-3" onClick={() => setOptionsOpen(false)}>बंद करें</button>
+          </div>
+        </div>
+      )}
 
       {/* QR बॉटम-शीट */}
       {qrOrder && (
