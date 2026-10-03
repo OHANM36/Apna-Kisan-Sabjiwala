@@ -6,6 +6,10 @@ import { isCod, isCodOnline, isPaid } from '../utils/paymentMethods'
 import { useSettings } from '../context/SettingsContext'
 import UpiQr, { buildUpiLink } from '../components/UpiQr'
 import { Bone, SkeletonWrap } from '../components/Skeleton'
+import { distanceKm, formatDistanceHi } from '../utils/distance'
+import { safeGet, safeSet } from '../utils/safeStorage'
+
+const DISTANCE_KEY = 'aks_delivery_show_distance_v1'
 
 const TABS = [
   { key: 'available', label: 'उपलब्ध' },
@@ -98,7 +102,7 @@ function PaymentPill({ o }) {
 }
 
 // ---------- ऑर्डर कार्ड ----------
-function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr }) {
+function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr, distance }) {
   const needsCollect = isCod(o) && !isPaid(o)
   const upi = isCodOnline(o)
   const chip = tab === 'available'
@@ -124,6 +128,11 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr 
       <div className="mt-3 text-[14px] text-gray-800 flex flex-col gap-0.5">
         <p className="font-semibold">👤 {o.customer_name}</p>
         <a href={`tel:${o.customer_phone}`} className="text-gray-600 inline-flex items-center min-h-[32px] w-fit">📞 {o.customer_phone}</a>
+        {distance && (
+          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: distance.known ? '#eff6ff' : '#f3f4f6', color: distance.known ? '#1d4ed8' : '#6b7280' }}>
+            📏 {distance.text}
+          </p>
+        )}
       </div>
 
       {/* भुगतान */}
@@ -232,6 +241,11 @@ export default function DeliveryOrders() {
   const [qrOrder, setQrOrder] = useState(null)
   const { settings } = useSettings()
 
+  // ---- "ग्राहक से दूरी" विकल्प: डिलीवरी बॉय की लोकेशन सिर्फ़ इसी फ़ोन में रहती है, सर्वर को नहीं भेजी जाती ----
+  const [showDistance, setShowDistance] = useState(() => safeGet(DISTANCE_KEY) === '1')
+  const [myPos, setMyPos] = useState(null)
+  const [posStatus, setPosStatus] = useState('idle') // idle | locating | ok | error
+
   const showToast = useCallback((message, type = 'ok') => {
     setToast({ message, type, id: Date.now() })
   }, [])
@@ -240,6 +254,52 @@ export default function DeliveryOrders() {
     const id = setTimeout(() => setToast(null), 3500)
     return () => clearTimeout(id)
   }, [toast])
+
+  useEffect(() => {
+    if (!showDistance) {
+      setMyPos(null)
+      setPosStatus('idle')
+      return undefined
+    }
+    if (!navigator.geolocation) {
+      setPosStatus('error')
+      return undefined
+    }
+    setPosStatus('locating')
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        const next = { lat: p.coords.latitude, lng: p.coords.longitude }
+        // 25 मीटर से कम हिले तो दोबारा न बनाएँ (बेवजह री-रेंडर और बैटरी)
+        setMyPos((prev) => (prev && (distanceKm(prev, next) ?? 1) < 0.025 ? prev : next))
+        setPosStatus('ok')
+      },
+      (err) => {
+        setPosStatus('error')
+        if (err.code === err.PERMISSION_DENIED) {
+          setShowDistance(false)
+          safeSet(DISTANCE_KEY, '0')
+          showToast('लोकेशन की अनुमति नहीं मिली। फ़ोन/ब्राउज़र सेटिंग में लोकेशन की अनुमति दें।', 'err')
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+    )
+    return () => navigator.geolocation.clearWatch(id)
+  }, [showDistance, showToast])
+
+  function toggleDistance() {
+    const next = !showDistance
+    setShowDistance(next)
+    safeSet(DISTANCE_KEY, next ? '1' : '0')
+  }
+
+  // हर ऑर्डर के लिए दिखाने का टेक्स्ट (null = विकल्प बंद)
+  function distanceFor(o) {
+    if (!showDistance) return null
+    if (!(o.latitude && o.longitude)) return { known: false, text: 'दूरी उपलब्ध नहीं — ग्राहक की GPS लोकेशन नहीं मिली' }
+    if (!myPos) return { known: false, text: posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही' : 'दूरी निकाली जा रही है…' }
+    const km = distanceKm(myPos, { lat: o.latitude, lng: o.longitude })
+    return km == null ? null : { known: true, text: `ग्राहक आपसे लगभग ${formatDistanceHi(km)} दूर (सीधी दूरी)` }
+  }
 
   // वही RPC (delivery_orders), तीनों टैब एक साथ — ताकि ऊपर का सारांश और टैब की गिनती सही रहे
   const loadOrders = useCallback(async (silent = false) => {
@@ -355,6 +415,30 @@ export default function DeliveryOrders() {
         </div>
       </div>
 
+      <div className="dp-wrap mt-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-gray-800">📏 ग्राहक से दूरी दिखाएँ</p>
+            <p className="text-[12px] text-gray-500 mt-0.5">
+              {!showDistance ? 'चालू करने पर आपकी लोकेशन से हर ऑर्डर की दूरी दिखेगी'
+                : posStatus === 'ok' ? 'आपकी लोकेशन मिल गई — सीधी (हवाई) दूरी, सड़क से कुछ ज़्यादा होगी'
+                : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
+                : 'आपकी लोकेशन ढूँढी जा रही है…'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showDistance}
+            aria-label="ग्राहक से दूरी दिखाएँ"
+            onClick={toggleDistance}
+            className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${showDistance ? 'bg-green-700' : 'bg-gray-300'}`}
+          >
+            <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${showDistance ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* चिपका हुआ (sticky) फ़िल्टर */}
       <div className="dp-tabs-bar mt-2">
         <div className="dp-wrap">
@@ -398,6 +482,7 @@ export default function DeliveryOrders() {
                   onClaim={() => claimOrder(o)}
                   onDeliver={() => openConfirm(o)}
                   onQr={() => setQrOrder(o)}
+                  distance={distanceFor(o)}
                 />
               )
             )}
