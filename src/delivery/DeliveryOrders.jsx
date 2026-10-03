@@ -6,10 +6,20 @@ import { isCod, isCodOnline, isPaid } from '../utils/paymentMethods'
 import { useSettings } from '../context/SettingsContext'
 import UpiQr, { buildUpiLink } from '../components/UpiQr'
 import { Bone, SkeletonWrap } from '../components/Skeleton'
-import { distanceKm, formatDistanceHi } from '../utils/distance'
+import { distanceKm, formatDistanceHi, nearestWithin } from '../utils/distance'
+import { suggestStopOrder, totalLegKm } from '../utils/routeOrder'
 import { safeGet, safeSet } from '../utils/safeStorage'
 
 const DISTANCE_KEY = 'aks_delivery_show_distance_v1'
+const STOPS_KEY = 'aks_delivery_suggest_stops_v1'
+// "रास्ते वाला" ऑर्डर = इस दायरे (सीधी दूरी, किमी) के अंदर, उसी डिलीवरी स्लॉट (और तारीख) का
+const ROUTE_RADIUS_KM = 1.5
+
+const hasCoords = (o) => !!(o.latitude && o.longitude)
+const pointOf = (o) => ({ lat: o.latitude, lng: o.longitude })
+// साथ ले जाने लायक: वही स्लॉट; तारीख दोनों में मालूम हो तो वही तारीख (delivery_date पुराने SQL में नहीं आती — तब सिर्फ़ स्लॉट देखते हैं)
+const sameBatch = (a, b) =>
+  a.delivery_time_slot === b.delivery_time_slot && (!a.delivery_date || !b.delivery_date || a.delivery_date === b.delivery_date)
 
 const TABS = [
   { key: 'available', label: 'उपलब्ध' },
@@ -102,7 +112,7 @@ function PaymentPill({ o }) {
 }
 
 // ---------- ऑर्डर कार्ड ----------
-function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr, distance }) {
+function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr, distance, route, stop }) {
   const needsCollect = isCod(o) && !isPaid(o)
   const upi = isCodOnline(o)
   const chip = tab === 'available'
@@ -114,7 +124,10 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr,
       {/* हेडर */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-bold text-[16px] leading-tight text-gray-900">{shortNumber(o.order_number)}</p>
+          <p className="font-bold text-[16px] leading-tight text-gray-900">
+            {stop && <span className="dp-chip mr-2" style={{ background: '#166534', color: '#fff' }}>स्टॉप {stop.n}</span>}
+            {shortNumber(o.order_number)}
+          </p>
           <p className="text-[14px] font-semibold text-gray-700 mt-1">🕒 डिलीवरी: {o.delivery_time_slot}</p>
           <p className="text-[12px] text-gray-500 mt-0.5">ऑर्डर: {orderPlacedText(o.created_at)} • {agoText(o.created_at)}</p>
         </div>
@@ -131,6 +144,22 @@ function OrderCard({ o, tab, busy, expanded, onToggle, onClaim, onDeliver, onQr,
         {distance && (
           <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: distance.known ? '#eff6ff' : '#f3f4f6', color: distance.known ? '#1d4ed8' : '#6b7280' }}>
             📏 {distance.text}
+          </p>
+        )}
+        {stop && (
+          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#f0fdf4', color: '#166534' }}>
+            🧭 {stop.legKm == null ? 'लोकेशन नहीं मिली — इस स्टॉप का क्रम तय नहीं'
+              : `${stop.n === 1 ? 'आपसे' : 'पिछले स्टॉप से'} लगभग ${formatDistanceHi(stop.legKm)} दूर`}
+          </p>
+        )}
+        {route?.near && (
+          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#ecfdf3', color: '#166534' }}>
+            🛣️ आपकी डिलीवरी {shortNumber(route.near.order.order_number)} के रास्ते में — सिर्फ़ {formatDistanceHi(route.near.km)} दूर, साथ ले जा सकते हैं
+          </p>
+        )}
+        {route?.others > 0 && (
+          <p className="mt-1 text-[14px] font-semibold w-fit rounded-xl px-3 py-1.5" style={{ background: '#fff7ed', color: '#c2410c' }}>
+            📍 पास में {route.others} और ऑर्डर उपलब्ध — एक साथ ले सकते हैं
           </p>
         )}
       </div>
@@ -245,6 +274,8 @@ export default function DeliveryOrders() {
   const [showDistance, setShowDistance] = useState(() => safeGet(DISTANCE_KEY) === '1')
   const [myPos, setMyPos] = useState(null)
   const [posStatus, setPosStatus] = useState('idle') // idle | locating | ok | error
+  const [suggestOrder, setSuggestOrder] = useState(() => safeGet(STOPS_KEY) === '1')
+  const [routeOnly, setRouteOnly] = useState(false) // "उपलब्ध" टैब में सिर्फ़ रास्ते वाले ऑर्डर
 
   const showToast = useCallback((message, type = 'ok') => {
     setToast({ message, type, id: Date.now() })
@@ -255,8 +286,9 @@ export default function DeliveryOrders() {
     return () => clearTimeout(id)
   }, [toast])
 
+  const needGps = showDistance || suggestOrder // दोनों सुविधाओं को डिलीवरी बॉय की लोकेशन चाहिए
   useEffect(() => {
-    if (!showDistance) {
+    if (!needGps) {
       setMyPos(null)
       setPosStatus('idle')
       return undefined
@@ -278,18 +310,26 @@ export default function DeliveryOrders() {
         if (err.code === err.PERMISSION_DENIED) {
           setShowDistance(false)
           safeSet(DISTANCE_KEY, '0')
+          setSuggestOrder(false)
+          safeSet(STOPS_KEY, '0')
           showToast('लोकेशन की अनुमति नहीं मिली। फ़ोन/ब्राउज़र सेटिंग में लोकेशन की अनुमति दें।', 'err')
         }
       },
       { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [showDistance, showToast])
+  }, [needGps, showToast])
 
   function toggleDistance() {
     const next = !showDistance
     setShowDistance(next)
     safeSet(DISTANCE_KEY, next ? '1' : '0')
+  }
+
+  function toggleSuggestOrder() {
+    const next = !suggestOrder
+    setSuggestOrder(next)
+    safeSet(STOPS_KEY, next ? '1' : '0')
   }
 
   // हर ऑर्डर के लिए दिखाने का टेक्स्ट (null = विकल्प बंद)
@@ -391,6 +431,30 @@ export default function DeliveryOrders() {
     loadOrders(true)
   }
 
+  // "मेरी डिलीवरी" का सुझाया क्रम (डिलीवरी बॉय की अभी की जगह से; जगह मिलने तक सामान्य क्रम)
+  const stops = useMemo(
+    () => (suggestOrder && myPos ? suggestStopOrder(data.mine, myPos) : null),
+    [suggestOrder, myPos, data.mine]
+  )
+  const stopById = useMemo(() => new Map((stops || []).map((x) => [x.order.id, { n: x.stop, legKm: x.legKm }])), [stops])
+
+  // "उपलब्ध" ऑर्डर में से जो मेरी चल रही डिलीवरी के रास्ते में हैं, या जिनके पास और उपलब्ध ऑर्डर हैं।
+  // सिर्फ़ ऑर्डर की सेव की हुई GPS लोकेशन से — डिलीवरी बॉय की अपनी लोकेशन ज़रूरी नहीं।
+  const routeInfo = useMemo(() => {
+    const map = new Map()
+    const mine = data.mine.filter(hasCoords)
+    const avail = data.available.filter(hasCoords)
+    for (const o of avail) {
+      const refs = mine.filter((m) => sameBatch(m, o)).map((m) => ({ ...pointOf(m), order: m }))
+      const nearMine = nearestWithin(pointOf(o), refs, ROUTE_RADIUS_KM)
+      const others = avail.filter(
+        (x) => x.id !== o.id && sameBatch(x, o) && (distanceKm(pointOf(o), pointOf(x)) ?? Infinity) <= ROUTE_RADIUS_KM
+      ).length
+      if (nearMine || others > 0) map.set(o.id, { near: nearMine ? { order: nearMine.ref.order, km: nearMine.km } : null, others })
+    }
+    return map
+  }, [data.mine, data.available])
+
   // ऊपर का सारांश
   const stats = useMemo(() => {
     const collect = data.mine
@@ -399,7 +463,11 @@ export default function DeliveryOrders() {
     return { active: data.mine.length, done: data.done.length, collect }
   }, [data])
 
-  const list = data[tab]
+  const list = tab === 'available' && routeOnly
+    ? data.available.filter((o) => routeInfo.has(o.id))
+    : tab === 'mine' && stops
+    ? stops.map((x) => x.order)
+    : data[tab]
   const firstName = (deliveryBoy.full_name || '').split(' ')[0]
 
   return (
@@ -416,26 +484,40 @@ export default function DeliveryOrders() {
       </div>
 
       <div className="dp-wrap mt-3">
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-gray-800">📏 ग्राहक से दूरी दिखाएँ</p>
-            <p className="text-[12px] text-gray-500 mt-0.5">
-              {!showDistance ? 'चालू करने पर आपकी लोकेशन से हर ऑर्डर की दूरी दिखेगी'
+        <div className="rounded-2xl border border-gray-200 bg-white divide-y divide-gray-100">
+          {[
+            {
+              key: 'distance', on: showDistance, toggle: toggleDistance, title: '📏 ग्राहक से दूरी दिखाएँ',
+              hint: !showDistance ? 'चालू करने पर आपकी लोकेशन से हर ऑर्डर की दूरी दिखेगी'
                 : posStatus === 'ok' ? 'आपकी लोकेशन मिल गई — सीधी (हवाई) दूरी, सड़क से कुछ ज़्यादा होगी'
                 : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
-                : 'आपकी लोकेशन ढूँढी जा रही है…'}
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showDistance}
-            aria-label="ग्राहक से दूरी दिखाएँ"
-            onClick={toggleDistance}
-            className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${showDistance ? 'bg-green-700' : 'bg-gray-300'}`}
-          >
-            <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${showDistance ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+                : 'आपकी लोकेशन ढूँढी जा रही है…',
+            },
+            {
+              key: 'stops', on: suggestOrder, toggle: toggleSuggestOrder, title: '🧭 डिलीवरी का सुझाया क्रम',
+              hint: !suggestOrder ? '"मेरी डिलीवरी" में बताएगा कि पहले किस ग्राहक के पास जाएँ (सबसे छोटा रास्ता)'
+                : posStatus === 'ok' ? 'पहले स्लॉट का समय, फिर सबसे पास वाला — सीधी दूरी के हिसाब से अंदाज़ा'
+                : posStatus === 'error' ? 'आपकी लोकेशन नहीं मिल रही — GPS चालू करें'
+                : 'आपकी लोकेशन ढूँढी जा रही है…',
+            },
+          ].map((r) => (
+            <div key={r.key} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-gray-800">{r.title}</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">{r.hint}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={r.on}
+                aria-label={r.title}
+                onClick={r.toggle}
+                className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${r.on ? 'bg-green-700' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${r.on ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -459,12 +541,36 @@ export default function DeliveryOrders() {
       </div>
 
       <div className="dp-wrap pb-8">
+        {tab === 'mine' && !loading && stops && stops.length > 1 && (
+          <p className="mb-3 text-[13px] font-semibold rounded-xl px-3 py-2" style={{ background: '#f0fdf4', color: '#166534' }}>
+            🧭 {stops.length} स्टॉप • कुल लगभग {formatDistanceHi(totalLegKm(stops))} (सीधी दूरी) — नीचे इसी क्रम में दिख रहे हैं
+          </p>
+        )}
+        {tab === 'available' && !loading && (routeInfo.size > 0 || routeOnly) && (
+          <div className="flex items-center gap-2 mb-3">
+            {[
+              [false, `सभी (${data.available.length})`],
+              [true, `🛣️ रास्ते वाले (${routeInfo.size})`],
+            ].map(([val, label]) => (
+              <button
+                key={String(val)}
+                type="button"
+                onClick={() => setRouteOnly(val)}
+                className={`px-3 min-h-[36px] rounded-full text-[13px] font-bold border-2 ${
+                  routeOnly === val ? 'bg-green-700 text-white border-green-700' : 'bg-white text-gray-600 border-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {loading ? (
           <CardsSkeleton />
         ) : list.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-4xl mb-3" aria-hidden="true">{tab === 'done' ? '✅' : '📦'}</p>
-            <p className="text-[15px] text-gray-500">{EMPTY_TEXT[tab]}</p>
+            <p className="text-[15px] text-gray-500">{tab === 'available' && routeOnly ? 'अभी कोई रास्ते वाला ऑर्डर नहीं है' : EMPTY_TEXT[tab]}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -483,6 +589,8 @@ export default function DeliveryOrders() {
                   onDeliver={() => openConfirm(o)}
                   onQr={() => setQrOrder(o)}
                   distance={distanceFor(o)}
+                  route={tab === 'available' ? routeInfo.get(o.id) : null}
+                  stop={tab === 'mine' ? stopById.get(o.id) : null}
                 />
               )
             )}

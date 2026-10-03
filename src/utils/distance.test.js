@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { distanceKm, formatDistanceHi } from './distance.js'
+import { distanceKm, formatDistanceHi, nearestWithin } from './distance.js'
 
 test('same point is zero distance', () => {
   assert.equal(distanceKm({ lat: 23.2599, lng: 77.4126 }, { lat: 23.2599, lng: 77.4126 }), 0)
@@ -34,4 +34,16 @@ test('formatting: metres under 1 km, one decimal under 10 km, whole km after', (
   assert.equal(formatDistanceHi(2.43), '2.4 किमी')
   assert.equal(formatDistanceHi(15.8), '16 किमी')
   assert.equal(formatDistanceHi(null), '')
+})
+
+test('nearestWithin picks the closest ref inside the radius, otherwise null', () => {
+  const me = { lat: 23.25, lng: 77.4 }
+  const refs = [
+    { lat: 23.27, lng: 77.4, id: 'far' },   // ~2.2 km
+    { lat: 23.255, lng: 77.4, id: 'near' }, // ~0.55 km
+  ]
+  assert.equal(nearestWithin(me, refs, 1.5).ref.id, 'near')
+  assert.equal(nearestWithin(me, [refs[0]], 1.5), null)
+  assert.equal(nearestWithin(me, [], 1.5), null)
+  assert.equal(nearestWithin(me, [{ lat: null, lng: null }], 1.5), null)
 })

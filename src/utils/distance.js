@@ -21,3 +21,13 @@ export function formatDistanceHi(km) {
   if (km < 10) return `${(Math.round(km * 10) / 10).toString()} किमी`
   return `${Math.round(km)} किमी`
 }
+
+// refs में से point के सबसे पास वाला, अगर maxKm के अंदर हो: { ref, km } वरना null। (ref में lat, lng होने चाहिए)
+export function nearestWithin(point, refs, maxKm) {
+  let best = null
+  for (const ref of refs || []) {
+    const km = distanceKm(point, ref)
+    if (km != null && km <= maxKm && (!best || km < best.km)) best = { ref, km }
+  }
+  return best
+}
