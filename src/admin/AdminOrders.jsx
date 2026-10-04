@@ -323,14 +323,6 @@ export default function AdminOrders() {
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => setPrintOrders([o])}
-              className="mt-3 w-full min-h-[44px] border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl active:scale-95 transition-transform"
-            >
-              🖨 लेबल प्रिंट (Print Label)
-            </button>
-
             <div className="mt-3">
               <StatusBadge status={o.order_status} />
               {refundRequired(o) && (
@@ -341,38 +333,47 @@ export default function AdminOrders() {
               {o.order_status === S.CANCELLED && o.cancel_reason && (
                 <p className="mt-2 text-xs text-gray-500">कारण: {o.cancel_reason}</p>
               )}
-              {!isFinal(o.order_status) && (
-                <div className="flex gap-2 mt-2">
-                  {nextAction(o.order_status) && (
-                    <button
-                      onClick={() => advance(o)}
-                      disabled={busyId === o.id}
-                      className="flex-1 bg-kisan text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      {busyId === o.id ? 'कृपया रुकें...' : nextAction(o.order_status).label}
-                    </button>
-                  )}
-                  {canCancel(o.order_status) && (
-                    <button
-                      onClick={() => openCancel(o)}
-                      disabled={busyId === o.id}
-                      className="px-4 border-2 border-gray-300 text-gray-600 text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      ऑर्डर रद्द करें
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="flex gap-1.5 mt-2 items-stretch">
+                {!isFinal(o.order_status) && nextAction(o.order_status) && (
+                  <button
+                    onClick={() => advance(o)}
+                    disabled={busyId === o.id}
+                    className="flex-1 min-w-0 min-h-[44px] bg-kisan text-white text-[13px] leading-tight font-bold px-2 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    {busyId === o.id ? 'कृपया रुकें...' : nextAction(o.order_status).label}
+                  </button>
+                )}
+                {!isFinal(o.order_status) && canCancel(o.order_status) && (
+                  <button
+                    onClick={() => openCancel(o)}
+                    disabled={busyId === o.id}
+                    className="shrink-0 min-h-[44px] px-2.5 border-2 border-gray-300 text-gray-600 text-xs font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    रद्द
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPrintOrders([o])}
+                  aria-label="लेबल प्रिंट"
+                  title="लेबल प्रिंट"
+                  className="ml-auto shrink-0 w-10 min-h-[44px] flex items-center justify-center border-2 border-gray-300 text-gray-700 text-lg rounded-xl active:scale-95 transition-transform"
+                >
+                  🖨
+                </button>
+                <button
+                  onClick={() => openWa(o)}
+                  disabled={customerWhatsAppNumber(o.customer_phone).length < 10}
+                  aria-label="ग्राहक को WhatsApp अपडेट भेजें"
+                  title="ग्राहक को WhatsApp अपडेट भेजें"
+                  className="shrink-0 w-10 min-h-[44px] flex items-center justify-center bg-[#25D366] text-white text-lg rounded-xl active:scale-95 transition-transform disabled:opacity-40"
+                >
+                  📲
+                </button>
+              </div>
             </div>
 
             <div className="mt-3">
-              <button
-                onClick={() => openWa(o)}
-                disabled={customerWhatsAppNumber(o.customer_phone).length < 10}
-                className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-40"
-              >
-                <span>📲</span> ग्राहक को WhatsApp अपडेट भेजें
-              </button>
               {waOrder === o.id && (
                 <div className="mt-2 border border-green-200 bg-green-50 rounded-xl p-3">
                   <p className="text-xs font-semibold text-gray-600 mb-1">संदेश (भेजने से पहले बदल सकते हैं) — {o.customer_name} • {o.customer_phone}</p>
