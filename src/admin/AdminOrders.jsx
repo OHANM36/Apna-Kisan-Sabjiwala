@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
 import { supabase } from '../supabaseClient'
-import { formatRupee, formatDate, statusStepsFor, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
+import { formatRupee, formatDate, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
 import { isCod, isCodOnline, isPaid, paymentText } from '../utils/paymentMethods'
 import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
 import { ListPageSkeleton } from '../components/Skeleton'
+import CancelOrderModal from './CancelOrderModal'
+import { S, nextAction, canCancel, isFinal, refundRequired, describeStatusError, STALE_MESSAGE } from '../utils/orderFlow'
 
 const KINDS = ['सभी', 'AI सहायक', 'COD']
 
@@ -23,39 +25,88 @@ export default function AdminOrders() {
   const [collapsed, setCollapsed] = useState({ done: true, cancelled: true })
   const [expanded, setExpanded] = useState(null)
   const { isOwner } = useAdminAuth()
+  const [busyId, setBusyId] = useState(null)      // जिस ऑर्डर पर अभी बदलाव चल रहा है (double-tap रोकने के लिए)
+  const [notice, setNotice] = useState(null)      // {type:'error'|'info', text}
+  const [cancelFor, setCancelFor] = useState(null) // रद्द-पुष्टि मॉडल वाला ऑर्डर
+  const [cancelError, setCancelError] = useState('')
 
   useEffect(() => {
     loadOrders()
   }, [limit])
 
-  async function loadOrders() {
-    setLoading(true)
-    const { data } = await supabase
+  async function loadOrders({ silent = false } = {}) {
+    if (!silent) setLoading(true)
+    const { data, error } = await supabase
       .from('orders')
       .select('*, order_items(*)')
       .order('created_at', { ascending: false })
       .limit(limit) // हज़ारों ऑर्डर एक साथ न खिंचें
-    setOrders(data || [])
+    if (!error) setOrders(data || [])
+    else if (silent) setNotice({ type: 'error', text: 'ताज़ा ऑर्डर लोड नहीं हो सके। पेज रिफ्रेश करें।' })
     setLoading(false)
   }
 
-  async function updateStatus(order, newStatus) {
-    const orderId = order.id
-    // ऑनलाइन ऑर्डर का पैसा नहीं आया हो तो आगे बढ़ाने से पहले पूछें (COD में पैसा डिलीवरी पर आता है)
-    if (!isCod(order) && !isPaid(order) && newStatus !== 'नया ऑर्डर' && newStatus !== 'रद्द') {
-      const state = order.payment_status === 'असफल' ? 'असफल' : 'बाकी'
-      if (!confirm(`इस ऑर्डर का ऑनलाइन भुगतान अभी ${state} है।\nफिर भी स्थिति "${newStatus}" करें?`)) {
-        loadOrders()
-        return
+  // सारे स्थिति-बदलाव एक ही रास्ते से: डेटाबेस का admin_set_order_status RPC (ताला + stale-जाँच + वैध-बदलाव की जाँच)।
+  // स्क्रीन पर स्थिति तभी बदलती है जब डेटाबेस सफल लौटाए — पहले से "आशावादी" बदलाव नहीं।
+  async function changeStatus(order, newStatus, reason = null) {
+    if (busyId) return { ok: false }
+    setBusyId(order.id)
+    setNotice(null)
+    try {
+      const { data, error } = await supabase.rpc('admin_set_order_status', {
+        p_order_id: order.id,
+        p_expected_status: order.order_status, // जो स्थिति स्क्रीन पर दिख रही थी
+        p_new_status: newStatus,
+        p_reason: reason,
+      })
+      if (error) throw error
+      if (data && data.ok === false) {
+        if (data.error === 'STALE') {
+          setNotice({ type: 'info', text: STALE_MESSAGE })
+          await loadOrders({ silent: true })
+          return { ok: false, stale: true }
+        }
+        throw new Error(data.error || 'FAILED')
       }
+      await loadOrders({ silent: true })
+      return { ok: true }
+    } catch (err) {
+      const text = describeStatusError(err)
+      setNotice({ type: 'error', text })
+      // INVALID_TRANSITION आम तौर पर तब आता है जब स्क्रीन पुरानी हो — नई स्थिति दिखाएँ
+      if (/INVALID_TRANSITION/.test(String(err?.message || ''))) await loadOrders({ silent: true })
+      return { ok: false, error: text }
+    } finally {
+      setBusyId(null)
     }
-    const { error } = await supabase.from('orders').update({ order_status: newStatus }).eq('id', orderId)
-    if (error) {
-      alert(/INVALID_TRANSITION/.test(error.message || '')
-        ? 'पूरा/रद्द हुआ ऑर्डर वापस खोलने की अनुमति सिर्फ़ मालिक (owner) को है।'
-        : 'स्थिति बदली नहीं जा सकी। दोबारा कोशिश करें।')
+  }
+
+  async function advance(order) {
+    const next = nextAction(order.order_status)
+    if (!next) return
+    // ऑनलाइन ऑर्डर का पैसा नहीं आया हो तो आगे बढ़ाने से पहले पूछें (COD में पैसा डिलीवरी पर आता है)
+    if (!isCod(order) && !isPaid(order) && next.status !== S.ACCEPTED) {
+      const state = order.payment_status === 'असफल' ? 'असफल' : 'बाकी'
+      if (!confirm(`इस ऑर्डर का ऑनलाइन भुगतान अभी ${state} है।\nफिर भी स्थिति "${next.status}" करें?`)) return
     }
-    loadOrders()
+    // डिलीवरी पूरी होना अंतिम (लॉक) है — एक बार पूछ लें
+    if (next.status === S.DELIVERED && !confirm(`ऑर्डर ${order.order_number} को "डिलीवरी पूरी हुई" करें?\nइसके बाद यह ऑर्डर बदला नहीं जा सकेगा।`)) return
+    await changeStatus(order, next.status)
+  }
+
+  function openCancel(order) {
+    setCancelError('')
+    setCancelFor(order)
+  }
+
+  async function confirmCancel(reason) {
+    if (!cancelFor || !reason) return
+    const res = await changeStatus(cancelFor, S.CANCELLED, reason)
+    if (res.ok || res.stale) {
+      setCancelFor(null)
+    } else {
+      setCancelError(res.error || 'ऑर्डर रद्द नहीं हो सका। दोबारा कोशिश करें।')
+    }
   }
 
   function openWa(o) {
@@ -86,6 +137,28 @@ export default function AdminOrders() {
   return (
     <div>
       <h1 className="font-extrabold text-xl text-gray-800 mb-5">ऑर्डर प्रबंधन</h1>
+
+      {notice && (
+        <div
+          role="alert"
+          className={`mb-4 flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold ${
+            notice.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+          }`}
+        >
+          <span>{notice.text}</span>
+          <button onClick={() => setNotice(null)} className="text-xs font-bold opacity-70 shrink-0">बंद करें</button>
+        </div>
+      )}
+
+      {cancelFor && (
+        <CancelOrderModal
+          order={cancelFor}
+          busy={busyId === cancelFor.id}
+          error={cancelError}
+          onClose={() => setCancelFor(null)}
+          onConfirm={confirmCancel}
+        />
+      )}
 
       <div className="mb-4 flex flex-col gap-2">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -196,16 +269,37 @@ export default function AdminOrders() {
             )}
 
             <div className="mt-3">
-              <label className="text-xs font-semibold text-gray-500">ऑर्डर की स्थिति बदलें:</label>
-              <select
-                value={o.order_status}
-                onChange={(e) => updateStatus(o, e.target.value)}
-                className="input-field mt-1 text-sm py-2"
-              >
-                {[...statusStepsFor(o), 'रद्द'].map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <StatusBadge status={o.order_status} />
+              {refundRequired(o) && (
+                <p className="mt-2 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  ⚠️ रिफंड ज़रूरी — ग्राहक का ऑनलाइन भुगतान ({formatRupee(o.total_amount)}) अभी वापस नहीं हुआ। भुगतान: सफल
+                </p>
+              )}
+              {o.order_status === S.CANCELLED && o.cancel_reason && (
+                <p className="mt-2 text-xs text-gray-500">कारण: {o.cancel_reason}</p>
+              )}
+              {!isFinal(o.order_status) && (
+                <div className="flex gap-2 mt-2">
+                  {nextAction(o.order_status) && (
+                    <button
+                      onClick={() => advance(o)}
+                      disabled={busyId === o.id}
+                      className="flex-1 bg-kisan text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {busyId === o.id ? 'कृपया रुकें...' : nextAction(o.order_status).label}
+                    </button>
+                  )}
+                  {canCancel(o.order_status) && (
+                    <button
+                      onClick={() => openCancel(o)}
+                      disabled={busyId === o.id}
+                      className="px-4 border-2 border-gray-300 text-gray-600 text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      ऑर्डर रद्द करें
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-3">
@@ -260,5 +354,26 @@ export default function AdminOrders() {
         {groups.length === 0 && <p className="text-gray-400 text-center py-10">इस चयन में कोई ऑर्डर नहीं</p>}
       </div>
     </div>
+  )
+}
+
+// स्थिति का बैज — अंतिम स्थितियों पर 🔒 (कोई बदलाव-नियंत्रण नहीं)
+const BADGE_TONE = {
+  [S.NEW]: 'bg-blue-50 text-blue-700 border-blue-200',
+  [S.PAID]: 'bg-blue-50 text-blue-700 border-blue-200',
+  [S.ACCEPTED]: 'bg-amber-50 text-amber-700 border-amber-200',
+  [S.PREPARING]: 'bg-amber-50 text-amber-700 border-amber-200',
+  [S.OUT]: 'bg-purple-50 text-purple-700 border-purple-200',
+  [S.DELIVERED]: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  [S.CANCELLED]: 'bg-red-50 text-red-700 border-red-200',
+}
+function StatusBadge({ status }) {
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-extrabold px-3 py-1 rounded-full border ${BADGE_TONE[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+      {status === S.DELIVERED && '✓ '}
+      {status === S.CANCELLED && '✕ '}
+      {status}
+      {isFinal(status) && ' 🔒'}
+    </span>
   )
 }
