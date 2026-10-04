@@ -5,7 +5,7 @@ import { useSettings } from '../context/SettingsContext'
 import { supabase } from '../supabaseClient'
 import { startOnlinePayment } from '../utils/payment'
 import { codAvailability, PAYMENT_COD, PAYMENT_COD_ONLINE, PAYMENT_ONLINE } from '../utils/paymentMethods'
-import { getCurrentLocationAddress } from '../utils/geolocation'
+import { getCurrentPosition, reverseGeocode, hasValidLocation } from '../utils/geolocation'
 import Header from '../components/Header'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee, DELIVERY_TIME_SLOTS, istNow, addDays, isSlotAvailable, defaultDelivery } from '../utils/format'
@@ -59,24 +59,43 @@ export default function Checkout() {
   const [payMethod, setPayMethod] = useState(PAYMENT_ONLINE) // डिफ़ॉल्ट ऑनलाइन — COD ग्राहक खुद चुने
 
   const [locationNote, setLocationNote] = useState('')
+  const locationRef = useRef(null)
 
-  // auto=true: पेज खुलते ही अपने-आप — ग्राहक का लिखा कुछ नहीं बदलता (सिर्फ़ खाली खाने भरता है) और चुपचाप विफल होता है।
+  // auto=true: पेज खुलते ही अपने-आप — ग्राहक का लिखा पता नहीं बदलता (सिर्फ़ खाली खाने भरता है) और चुपचाप विफल होता है।
   // auto=false: बटन दबाने पर — पता नई लोकेशन से बदल देता है।
+  // GPS निर्देशांक पहले मिलते हैं और हर हाल में सेव होते हैं: पता ढूँढने वाली सेवा (Nominatim) धीमे नेट पर फेल हो
+  // तो भी ग्राहक का ऑर्डर रुकना नहीं चाहिए — तब पता वह खुद लिखता है।
   async function handleUseCurrentLocation(auto = false) {
     setLocating(true)
     setLocationError('')
     setLocationNote('')
+    let pos
     try {
-      const loc = await getCurrentLocationAddress()
-      setForm((f) => auto
+      pos = await getCurrentPosition()
+    } catch (err) {
+      if (!auto) setLocationError(typeof err === 'string' ? err : t('err_location_failed'))
+      setLocating(false)
+      return
+    }
+    // निर्देशांक मिल गए — अब "लोकेशन ज़रूरी है" वाली त्रुटि हट जाए
+    setErrors((e) => { const { location: _l, ...rest } = e; return rest })
+    let loc = null
+    try {
+      loc = await reverseGeocode(pos.lat, pos.lng)
+    } catch {
+      loc = null
+    }
+    setForm((f) => {
+      if (!loc) return { ...f, latitude: pos.lat, longitude: pos.lng }
+      return auto
         ? {
             ...f,
             address: f.address.trim() ? f.address : (loc.fullAddress || f.address),
             mohalla: f.mohalla.trim() ? f.mohalla : (loc.mohalla || f.mohalla),
             city: f.city.trim() && f.city !== 'Bhopal' ? f.city : (loc.city || f.city),
             pincode: f.pincode.trim() ? f.pincode : (loc.pincode || f.pincode),
-            latitude: f.address.trim() ? f.latitude : loc.lat,
-            longitude: f.address.trim() ? f.longitude : loc.lng,
+            latitude: pos.lat,
+            longitude: pos.lng,
           }
         : {
             ...f,
@@ -84,15 +103,12 @@ export default function Checkout() {
             mohalla: loc.mohalla || f.mohalla,
             city: loc.city || f.city,
             pincode: loc.pincode || f.pincode,
-            latitude: loc.lat,
-            longitude: loc.lng,
-          })
-      setLocationNote(t('checkout_location_autofilled'))
-    } catch (err) {
-      if (!auto) setLocationError(typeof err === 'string' ? err : t('err_location_failed'))
-    } finally {
-      setLocating(false)
-    }
+            latitude: pos.lat,
+            longitude: pos.lng,
+          }
+    })
+    setLocationNote(loc ? t('checkout_location_autofilled') : t('checkout_location_address_failed'))
+    setLocating(false)
   }
 
   // पहली बार पेज खुलने पर, अगर पता खाली है और लोकेशन की अनुमति "मना" नहीं है — तो पता अपने-आप भरें
@@ -152,6 +168,8 @@ export default function Checkout() {
     const e = {}
     if (!form.name.trim()) e.name = t('err_name_required')
     if (!/^[6-9]\d{9}$/.test(form.phone.trim())) e.phone = t('err_phone_invalid')
+    // वर्तमान लोकेशन (GPS) अनिवार्य — बिना इसके ऑर्डर आगे नहीं बढ़ता
+    if (!hasValidLocation(form.latitude, form.longitude)) e.location = t('err_location_required')
     if (!form.address.trim()) e.address = t('err_address_required')
     if (!form.city.trim()) e.city = t('err_city_required')
     if (!/^\d{6}$/.test(form.pincode.trim())) e.pincode = t('err_pincode_invalid')
@@ -159,6 +177,8 @@ export default function Checkout() {
     else if (form.deliveryDate < minDate || form.deliveryDate > maxDate) e.deliveryDate = t('err_date_invalid')
     else if (!isSlotAvailable(form.deliveryTime, form.deliveryDate, istNow())) e.deliveryTime = t('checkout_slot_invalid')
     setErrors(e)
+    // नाम/फ़ोन ठीक हों और सिर्फ़ लोकेशन बाकी हो तो वह हिस्सा स्क्रीन पर लाएँ (नीचे बटन के पास त्रुटि दिखती नहीं)
+    if (e.location && !e.name && !e.phone) locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     return Object.keys(e).length === 0
   }
 
@@ -342,18 +362,28 @@ export default function Checkout() {
             <input className="input-field" value={form.phone} onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder={t('checkout_phone_placeholder')} inputMode="numeric" />
           </Field>
 
-          <div>
+          <div ref={locationRef}>
             <button
               type="button"
               onClick={() => handleUseCurrentLocation(false)}
               disabled={locating}
-              className="w-full flex items-center justify-center gap-2 border-2 border-kisan text-kisan font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-60"
+              className={`w-full flex items-center justify-center gap-2 border-2 font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-60 ${
+                errors.location ? 'border-red-500 text-red-600 bg-red-50' : 'border-kisan text-kisan'
+              }`}
             >
               <span>📍</span>
               {locating ? t('checkout_locating') : t('checkout_use_location')}
+              <span aria-hidden="true">*</span>
             </button>
+            {!hasValidLocation(form.latitude, form.longitude) && !errors.location && !locationError && (
+              <p className="text-gray-500 text-xs mt-1.5 font-semibold">{t('checkout_location_required_hint')}</p>
+            )}
+            {errors.location && <p className="text-red-500 text-xs mt-1.5 font-semibold" role="alert">{errors.location}</p>}
             {locationError && <p className="text-red-500 text-xs mt-1.5 font-semibold">{locationError}</p>}
             {locationNote && !locationError && <p className="text-kisan text-xs mt-1.5 font-semibold">📍 {locationNote}</p>}
+            {!locationNote && !locationError && hasValidLocation(form.latitude, form.longitude) && (
+              <p className="text-kisan text-xs mt-1.5 font-semibold">📍 {t('checkout_location_captured')}</p>
+            )}
           </div>
 
           <Field label={t('checkout_address')} error={errors.address}>

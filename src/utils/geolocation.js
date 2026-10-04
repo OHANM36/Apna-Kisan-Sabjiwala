@@ -54,3 +54,15 @@ export async function getCurrentLocationAddress() {
   const address = await reverseGeocode(lat, lng)
   return { ...address, lat, lng }
 }
+
+/**
+ * क्या यह एक असली GPS निर्देशांक है? (checkout में लोकेशन अनिवार्य है)
+ * null/खाली/टेक्स्ट/सीमा से बाहर/(0,0) — सब अमान्य। ध्यान: Number(null) === 0 होता है, इसलिए सिर्फ़ असली संख्या मानी जाती है।
+ */
+export function hasValidLocation(lat, lng) {
+  if (typeof lat !== 'number' || typeof lng !== 'number') return false
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false
+  if (lat === 0 && lng === 0) return false
+  return true
+}
