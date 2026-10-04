@@ -243,27 +243,27 @@ export default function AdminOrders() {
                 <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleSelect(o.id)} className="w-5 h-5 accent-green-700" />
               </label>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm">{o.order_number}</p>
-                <p className="text-xs text-gray-500">{o.customer_name} • {o.customer_phone}</p>
+                <p className="font-bold text-gray-800 text-sm break-all">{o.order_number}</p>
+                <p className="text-xs text-gray-500 break-words">{o.customer_name} • {o.customer_phone}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{formatDate(o.created_at)}</p>
                 {o.order_source && o.order_source !== 'वेबसाइट' && (
-                  <span className="inline-block mt-1 text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                  <span className="inline-block mt-1 text-[10px] font-bold whitespace-nowrap bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
                     🤖 {o.order_source}
                   </span>
                 )}
                 {isCod(o) && (
-                  <span className="inline-block mt-1 ml-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                  <span className="inline-block mt-1 ml-1 text-[10px] font-bold whitespace-nowrap bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
                     {isCodOnline(o) ? '📲 डिलीवरी पर UPI' : '💵 कैश ऑन डिलीवरी'}
                   </span>
                 )}
               </div>
-              <div className="text-right">
-                <p className="font-extrabold text-gray-800">{formatRupee(o.total_amount)}</p>
-                <p className={`text-xs font-bold ${isPaid(o) ? 'text-kisan' : 'text-orange-500'}`}>
-                  भुगतान: {paymentText(o)}
-                </p>
+              <div className="text-right shrink-0 pl-2">
+                <p className="font-extrabold text-gray-800 whitespace-nowrap">{formatRupee(o.total_amount)}</p>
               </div>
             </div>
+            <p className={`mt-2 text-xs font-bold ${isPaid(o) ? 'text-kisan' : 'text-orange-500'}`}>
+              भुगतान: {paymentText(o)}
+            </p>
 
             {expanded === o.id && (
               <div className="mt-3 pt-3 border-t border-gray-100">
