@@ -4,6 +4,7 @@ import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
 import { playNewOrderSound, playStatusChangeSound, unlockSounds } from '../utils/sounds'
 import AdminToastList from '../components/AdminToastList'
+import AdminPushCard from './AdminPushCard'
 import { useLanguage } from '../context/LanguageContext'
 import { usePT } from '../pricing/strings'
 import { PendingSyncBanner } from '../pricing/ui/common'
@@ -192,6 +193,7 @@ export default function AdminLayout() {
           <button onClick={toggleLanguage} className="text-xs font-bold text-gray-500">{language === 'hi' ? 'English' : 'हिंदी'}</button>
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
+        <AdminPushCard />
         {!audioReady && (
           <div className="mb-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm font-semibold px-3 py-2">
             🔔 नए ऑर्डर की आवाज़ चालू करने के लिए स्क्रीन पर कहीं भी एक बार टैप करें

@@ -36,3 +36,43 @@ self.addEventListener('fetch', (e) => {
     }),
   )
 })
+
+// ---- Web Push: ऐप बंद होने पर भी नया-ऑर्डर नोटिफ़िकेशन ----
+self.addEventListener('push', (e) => {
+  let data = {}
+  try {
+    data = e.data ? e.data.json() : {}
+  } catch {
+    data = { body: e.data ? e.data.text() : '' }
+  }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'नया ऑर्डर आया', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag || 'new-order',
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [200, 100, 200, 100, 200],
+      data: { url: data.url || '/admin/orders' },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const url = (e.notification.data && e.notification.data.url) || '/admin/orders'
+  e.waitUntil(
+    (async () => {
+      const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const c of list) {
+        if ('focus' in c) {
+          await c.focus()
+          try { if ('navigate' in c) await c.navigate(url) } catch { /* ignore */ }
+          return
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(url)
+    })(),
+  )
+})
