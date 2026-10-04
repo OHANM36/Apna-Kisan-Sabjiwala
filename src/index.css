@@ -288,3 +288,58 @@ html, body {
 .admin-notif:last-child { border-bottom: 0; }
 .admin-notif time { display: block; font-size: 12px; color: var(--ak-muted); margin-top: 2px; }
 .admin-empty-note { padding: 28px 0; text-align: center; color: var(--ak-muted); font-size: 14px; }
+
+/* ── एडमिन साझा कंपोनेंट ── */
+.admin-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.admin-page-title { font-size: 22px; line-height: 1.2; font-weight: 800; margin: 0; }
+.admin-page-sub { font-size: 13px; color: var(--ak-muted); margin: 2px 0 0; }
+@media (min-width: 768px) { .admin-page-title { font-size: 24px; } }
+.admin-card { background: #fff; border: 1px solid var(--ak-line); border-radius: 16px; }
+.admin-section-head { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 10px; }
+.admin-section-head h3 { font-size: 16px; font-weight: 700; margin: 0; }
+.admin-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: 14px; font-weight: 700; color: var(--ak-green); text-decoration: none; }
+.admin-link:active { opacity: .7; }
+
+.admin-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 768px) { .admin-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } }
+@media (min-width: 1024px) { .admin-stat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.admin-stat { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; background: #fff; border: 1px solid var(--ak-line); border-radius: 14px; }
+.admin-stat.is-featured { grid-column: span 2; padding: 14px; background: var(--ak-green-900); border-color: var(--ak-green-900); color: #fff; }
+@media (min-width: 768px) { .admin-stat.is-featured { grid-column: span 1; } }
+.admin-stat-ico { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; }
+.admin-stat.is-featured .admin-stat-ico { width: 42px; height: 42px; background: rgba(255,255,255,.14); color: #fff; }
+.admin-stat-label { font-size: 12.5px; line-height: 1.25; color: var(--ak-muted); font-weight: 600; margin: 0; }
+.admin-stat.is-featured .admin-stat-label { color: #bbf7d0; }
+.admin-stat-value { font-size: 22px; line-height: 1.2; font-weight: 800; margin: 1px 0 0; overflow-wrap: anywhere; }
+.admin-stat.is-featured .admin-stat-value { font-size: 26px; }
+.admin-tone-green { background: #e7f4ec; color: #1f6b43; }
+.admin-tone-blue { background: #e6f0fd; color: #1d5fc4; }
+.admin-tone-red { background: #fdeaea; color: #b42318; }
+.admin-tone-amber { background: #fdf1d9; color: #a15c07; }
+
+.admin-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; text-decoration: none; border: 1px solid; white-space: nowrap;
+  transition: transform .15s, opacity .15s;
+}
+.admin-chip:active { transform: scale(.97); }
+.admin-chip b { font-size: 15px; font-weight: 800; }
+
+.admin-status-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; line-height: 1.5; white-space: nowrap; }
+
+.admin-list { display: flex; flex-direction: column; gap: 8px; }
+.admin-list-item {
+  display: block; padding: 12px 14px; background: #fff; border: 1px solid var(--ak-line); border-radius: 14px;
+  color: inherit; text-decoration: none; transition: transform .15s, background-color .15s;
+}
+a.admin-list-item:active { transform: scale(.99); background: #faf9f5; }
+.admin-li-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.admin-li-row + .admin-li-row { margin-top: 6px; }
+.admin-li-title { font-size: 15px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-li-amount { font-size: 15px; font-weight: 800; flex: none; }
+.admin-li-sub { font-size: 12.5px; color: var(--ak-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.admin-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; text-align: center; color: var(--ak-muted); font-size: 14px; }
+.admin-empty p { margin: 0; }
+.admin-empty-ico { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; background: #f1f0ea; color: #8a897d; }

@@ -2,9 +2,29 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { formatRupee, ORDER_STAGES, stageOf } from '../utils/format'
-import { DashboardSkeleton } from '../components/Skeleton'
+import { AdminDashboardSkeleton } from '../components/Skeleton'
+import { useLanguage } from '../context/LanguageContext'
+import { AdminPageHeader, AdminStatCard, AdminStatusBadge, AdminEmptyState } from './AdminUI'
+
+const TXT = {
+  title: { hi: 'डैशबोर्ड', en: 'Dashboard' },
+  today: { hi: 'आज का कारोबार', en: "Today's business overview" },
+  todaySales: { hi: 'आज की बिक्री', en: "Today's sales" },
+  totalOrders: { hi: 'कुल ऑर्डर', en: 'Total orders' },
+  completed: { hi: 'पूरे हुए ऑर्डर', en: 'Completed' },
+  cancelled: { hi: 'रद्द ऑर्डर', en: 'Cancelled' },
+  totalPaid: { hi: 'कुल भुगतान प्राप्त', en: 'Total paid' },
+  status: { hi: 'ऑर्डर की स्थिति', en: 'Order status' },
+  recent: { hi: 'हाल के ऑर्डर', en: 'Recent orders' },
+  viewAll: { hi: 'सभी देखें', en: 'View all' },
+  none: { hi: 'अभी तक कोई ऑर्डर नहीं', en: 'No orders yet' },
+}
 
 export default function AdminDashboard() {
+  const { language } = useLanguage()
+  const lang = language === 'en' ? 'en' : 'hi'
+  const t = (k) => TXT[k][lang]
+
   const [stats, setStats] = useState(null)
   const [recentOrders, setRecentOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,60 +59,62 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  if (loading) return <DashboardSkeleton />
+  if (loading) return <AdminDashboardSkeleton />
 
-  const cards = [
-    { label: 'आज की बिक्री', value: formatRupee(stats.todaySales), color: 'bg-kisan' },
-    { label: 'कुल ऑर्डर', value: stats.totalOrders, color: 'bg-blue-600' },
-    { label: 'पूरे हुए ऑर्डर', value: stats.completed, color: 'bg-emerald-600' },
-    { label: 'रद्द ऑर्डर', value: stats.cancelled, color: 'bg-red-500' },
-    { label: 'कुल भुगतान प्राप्त', value: formatRupee(stats.totalPaid), color: 'bg-kisan-orange' },
-  ]
+  const locale = lang === 'en' ? 'en-IN' : 'hi-IN'
+  const todayText = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
+  const fmtTime = (d) =>
+    new Date(d).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
   return (
     <div>
-      <h1 className="font-extrabold text-xl text-gray-800 mb-5">डैशबोर्ड</h1>
+      <AdminPageHeader title={t('title')} subtitle={`${t('today')} • ${todayText}`} />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        {cards.map((c) => (
-          <div key={c.label} className={`${c.color} text-white rounded-2xl p-4 shadow-sm`}>
-            <p className="text-xs opacity-80 font-semibold">{c.label}</p>
-            <p className="text-2xl font-extrabold mt-1">{c.value}</p>
-          </div>
-        ))}
+      <div className="admin-stat-grid">
+        <AdminStatCard featured icon="rupee" tone="green" label={t('todaySales')} value={formatRupee(stats.todaySales)} />
+        <AdminStatCard icon="orders" tone="blue" label={t('totalOrders')} value={stats.totalOrders} />
+        <AdminStatCard icon="check" tone="green" label={t('completed')} value={stats.completed} />
+        <AdminStatCard icon="close" tone="red" label={t('cancelled')} value={stats.cancelled} />
+        <AdminStatCard icon="card" tone="amber" label={t('totalPaid')} value={formatRupee(stats.totalPaid)} />
       </div>
 
-      <h2 className="font-bold text-gray-800 mb-3">ऑर्डर की स्थिति</h2>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="admin-section-head"><h3>{t('status')}</h3></div>
+      <div className="admin-chip-row">
         {ORDER_STAGES.map((st) => (
-          <Link key={st.key} to={`/admin/orders?stage=${st.key}`} className={`rounded-2xl border p-3 ${st.tone}`}>
-            <p className="text-xs font-bold">{st.icon} {st.label}</p>
-            <p className="text-2xl font-extrabold mt-1">{stats.stageCounts[st.key]}</p>
+          <Link key={st.key} to={`/admin/orders?stage=${st.key}`} className={`admin-chip ${st.tone}`}>
+            {st.label} <b>{stats.stageCounts[st.key]}</b>
           </Link>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-gray-800">हाल के ऑर्डर</h2>
-          <Link to="/admin/orders" className="text-kisan text-sm font-bold">सभी देखें</Link>
-        </div>
-        <div className="flex flex-col divide-y divide-gray-100">
-          {recentOrders.map((o) => (
-            <div key={o.id} className="py-3 flex justify-between items-center">
-              <div>
-                <p className="font-semibold text-gray-800 text-sm">{o.order_number}</p>
-                <p className="text-xs text-gray-500">{o.customer_name} • {o.customer_phone}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-gray-800 text-sm">{formatRupee(o.total_amount)}</p>
-                <p className={`text-[11px] font-bold inline-block mt-0.5 px-2 py-0.5 rounded-full border ${stageOf(o).tone}`}>{o.order_status}</p>
-              </div>
-            </div>
-          ))}
-          {recentOrders.length === 0 && <p className="text-gray-400 text-sm py-4 text-center">अभी तक कोई ऑर्डर नहीं</p>}
-        </div>
+      <div className="admin-section-head">
+        <h3>{t('recent')}</h3>
+        <Link to="/admin/orders" className="admin-link">{t('viewAll')}</Link>
       </div>
+      {recentOrders.length === 0 ? (
+        <div className="admin-card"><AdminEmptyState icon="orders" text={t('none')} /></div>
+      ) : (
+        <div className="admin-list">
+          {recentOrders.map((o) => {
+            const st = stageOf(o)
+            return (
+              <Link key={o.id} to={`/admin/orders?stage=${st.key}`} className="admin-list-item">
+                <div className="admin-li-row">
+                  <span className="admin-li-title">{o.order_number}</span>
+                  <span className="admin-li-amount">{formatRupee(o.total_amount)}</span>
+                </div>
+                <div className="admin-li-row">
+                  <span className="admin-li-sub">{o.customer_name}{o.customer_phone ? ` • ${o.customer_phone}` : ''}</span>
+                  <AdminStatusBadge label={o.order_status} tone={st.tone} />
+                </div>
+                <div className="admin-li-row">
+                  <span className="admin-li-sub">{fmtTime(o.created_at)}</span>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
