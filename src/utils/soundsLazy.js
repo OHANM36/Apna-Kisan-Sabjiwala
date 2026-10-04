@@ -1,4 +1,4 @@
-// साउंड फ़ाइलें (~50KB base64, महिला आवाज़ "Order received" सहित) तभी लोड हो जब सच में बजानी हो — पहले पेज-लोड हल्का रहे।
+// साउंड फ़ाइलें तभी लोड हों जब सच में बजानी हो — पहले पेज-लोड हल्का रहे।
 export function playNewOrderSound() {
   import('./sounds').then((m) => m.playNewOrderSound()).catch(() => {})
 }
