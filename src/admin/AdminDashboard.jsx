@@ -20,6 +20,15 @@ const TXT = {
   none: { hi: 'अभी तक कोई ऑर्डर नहीं', en: 'No orders yet' },
 }
 
+// टाइल पर छोटे नाम (पूरा नाम aria-label में रहता है)
+const SHORT = {
+  new: { hi: 'नए', en: 'New' },
+  prep: { hi: 'तैयारी', en: 'Prep' },
+  transit: { hi: 'रास्ते में', en: 'On way' },
+  done: { hi: 'पूरे', en: 'Done' },
+  cancelled: { hi: 'रद्द', en: 'Cancelled' },
+}
+
 export default function AdminDashboard() {
   const { language } = useLanguage()
   const lang = language === 'en' ? 'en' : 'hi'
@@ -79,10 +88,16 @@ export default function AdminDashboard() {
       </div>
 
       <div className="admin-section-head"><h3>{t('status')}</h3></div>
-      <div className="admin-chip-row">
+      <div className="admin-tile-row">
         {ORDER_STAGES.map((st) => (
-          <Link key={st.key} to={`/admin/orders?stage=${st.key}`} className={`admin-chip ${st.tone}`}>
-            {st.label} <b>{stats.stageCounts[st.key]}</b>
+          <Link
+            key={st.key}
+            to={`/admin/orders?stage=${st.key}`}
+            className={`admin-tile ${st.tone}`}
+            aria-label={`${st.label}: ${stats.stageCounts[st.key]}`}
+          >
+            <b>{stats.stageCounts[st.key]}</b>
+            <span>{SHORT[st.key]?.[lang] || st.label}</span>
           </Link>
         ))}
       </div>

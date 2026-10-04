@@ -480,8 +480,8 @@ export function AdminDashboardSkeleton() {
         ))}
       </div>
       <Bone className="h-5 w-32 mt-6 mb-3" />
-      <div className="flex flex-wrap gap-2" aria-hidden="true">
-        {['w-28', 'w-24', 'w-28', 'w-24', 'w-16'].map((w, i) => <Bone key={i} className={`h-10 rounded-full ${w}`} />)}
+      <div className="admin-tile-row" aria-hidden="true">
+        {Array.from({ length: 5 }).map((_, i) => <Bone key={i} className="h-16 rounded-xl" />)}
       </div>
       <Bone className="h-5 w-32 mt-6 mb-3" />
       <div className="flex flex-col gap-2" aria-hidden="true">

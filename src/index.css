@@ -343,3 +343,16 @@ a.admin-list-item:active { transform: scale(.99); background: #faf9f5; }
 .admin-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; text-align: center; color: var(--ak-muted); font-size: 14px; }
 .admin-empty p { margin: 0; }
 .admin-empty-ico { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; background: #f1f0ea; color: #8a897d; }
+
+/* ऑर्डर-स्थिति टाइल: 5 बराबर टाइल एक पंक्ति में */
+.admin-tile-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 480px) { .admin-tile-row { gap: 10px; } }
+.admin-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 64px; min-width: 0;
+  padding: 8px 2px; border-radius: 12px; border: 1px solid; text-align: center; text-decoration: none;
+  transition: transform .15s;
+}
+.admin-tile:active { transform: scale(.97); }
+.admin-tile b { font-size: 22px; line-height: 1.15; font-weight: 800; }
+.admin-tile span { max-width: 100%; font-size: 12px; line-height: 1.2; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 359px) { .admin-tile span { font-size: 11px; } .admin-tile b { font-size: 20px; } }
