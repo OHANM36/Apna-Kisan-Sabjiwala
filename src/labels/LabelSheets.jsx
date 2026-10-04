@@ -33,20 +33,21 @@ function Info({ order, clamp }) {
 
 function Pay({ order, withMeta = true }) {
   const b = paymentBadge(order)
-  const items = order.order_items?.length
-  const when = deliveryText(order)
   return (
     <div className={`lbl-pay ${b.kind}`}>
       <span className="lbl-payhead">{b.headline}</span>
-      {withMeta && (
-        <span className="lbl-meta">
-          {b.note}
-          {items != null && <><br />Items: {items}</>}
-          {when && <><br />{when}</>}
-        </span>
-      )}
+      {withMeta && <span className="lbl-meta">{b.note}</span>}
     </div>
   )
+}
+
+// आइटम और डिलीवरी का समय — भुगतान-बॉक्स के बाहर एक अलग पतली लाइन में (कटता नहीं)
+function MetaLine({ order }) {
+  const items = order.order_items?.length
+  const when = deliveryText(order)
+  const parts = [items != null ? `Items: ${items}` : null, when || null].filter(Boolean)
+  if (!parts.length) return null
+  return <div className="lbl-metaline">{parts.join('  •  ')}</div>
 }
 
 // 75×50 / 100×75 / 80 mm — लोगो, ऑर्डर नंबर, ग्राहक, बैग, QR, भुगतान
@@ -67,6 +68,7 @@ function LabelStd({ label, variant, qrSvg, showQr, cut, logoSrc }) {
         <Info order={order} clamp={variant === 'std' ? 2 : 3} />
         <Qr svg={qrSvg} show={showQr} />
       </div>
+      <MetaLine order={order} />
       <Pay order={order} />
     </div>
   )
