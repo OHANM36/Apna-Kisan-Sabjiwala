@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import { supabase } from '../supabaseClient'
-import { playNewOrderSound, playStatusChangeSound } from '../utils/soundsLazy'
+import { playNewOrderSound, playStatusChangeSound, unlockSounds } from '../utils/sounds'
 import AdminToastList from '../components/AdminToastList'
 import { useLanguage } from '../context/LanguageContext'
 import { usePT } from '../pricing/strings'
@@ -45,6 +45,24 @@ export default function AdminLayout() {
   const settingsActive = visibleSettings.some((l) => pathname.startsWith(l.to))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const showSettings = settingsOpen || settingsActive
+
+  // ब्राउज़र पेज खुलते ही आवाज़ नहीं बजने देता — पहले एक टैप/क्लिक चाहिए। पहले टैप पर आवाज़ें अनलॉक कर देते हैं।
+  const [audioReady, setAudioReady] = useState(() =>
+    typeof navigator !== 'undefined' && navigator.userActivation ? navigator.userActivation.hasBeenActive : false
+  )
+  useEffect(() => {
+    if (audioReady) {
+      unlockSounds()
+      return
+    }
+    const unlock = () => {
+      unlockSounds()
+      setAudioReady(true)
+    }
+    const events = ['pointerdown', 'touchstart', 'keydown']
+    events.forEach((e) => window.addEventListener(e, unlock, { once: true, capture: true }))
+    return () => events.forEach((e) => window.removeEventListener(e, unlock, { capture: true }))
+  }, [audioReady])
 
   const pushToast = useCallback((message, type) => {
     const id = ++toastIdRef.current
@@ -174,6 +192,11 @@ export default function AdminLayout() {
           <button onClick={toggleLanguage} className="text-xs font-bold text-gray-500">{language === 'hi' ? 'English' : 'हिंदी'}</button>
           <button onClick={logout} className="text-xs font-bold text-red-500">लॉगआउट</button>
         </div>
+        {!audioReady && (
+          <div className="mb-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm font-semibold px-3 py-2">
+            🔔 नए ऑर्डर की आवाज़ चालू करने के लिए स्क्रीन पर कहीं भी एक बार टैप करें
+          </div>
+        )}
         {isOwner && <PendingSyncBanner />}
         <Suspense fallback={<PageSkeleton />}><Outlet /></Suspense>
       </main>
