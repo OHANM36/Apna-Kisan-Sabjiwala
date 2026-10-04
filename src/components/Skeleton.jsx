@@ -496,3 +496,28 @@ export function AdminDashboardSkeleton() {
     </SkeletonWrap>
   )
 }
+
+/** ऑर्डर पेज: शीर्षक + सर्च + चिप्स + ऑर्डर कार्ड (AdminOrders के ढाँचे जैसा) */
+export function OrdersSkeleton({ count = 3 }) {
+  return (
+    <SkeletonWrap>
+      <Bone className="h-6 w-24 mb-2" />
+      <Bone className="h-3.5 w-40 mb-4" />
+      <Bone className="h-11 w-full rounded-xl mb-3" />
+      <div className="flex gap-2 mb-4 overflow-hidden" aria-hidden="true">
+        {Array.from({ length: 5 }).map((_, i) => <Bone key={i} className="h-10 w-20 rounded-full shrink-0" />)}
+      </div>
+      <div className="flex flex-col gap-3" aria-hidden="true">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="bg-white border border-gray-100 rounded-2xl p-3 flex flex-col gap-2.5">
+            <div className="flex justify-between"><Bone className="h-4 w-32" /><Bone className="h-5 w-16" /></div>
+            <Bone className="h-3.5 w-44" />
+            <div className="flex gap-2"><Bone className="h-5 w-24 rounded-full" /><Bone className="h-5 w-20 rounded-full" /></div>
+            <Bone className="h-3.5 w-full" />
+            <div className="flex gap-2 mt-1"><Bone className="h-11 flex-1 rounded-xl" /><Bone className="h-11 w-24 rounded-xl" /><Bone className="h-11 w-11 rounded-xl" /></div>
+          </div>
+        ))}
+      </div>
+    </SkeletonWrap>
+  )
+}

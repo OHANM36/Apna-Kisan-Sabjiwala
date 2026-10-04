@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient'
 import { formatRupee, ORDER_STAGES, stageOf } from '../utils/format'
 import { AdminDashboardSkeleton } from '../components/Skeleton'
 import { useLanguage } from '../context/LanguageContext'
-import { AdminPageHeader, AdminStatCard, AdminStatusBadge, AdminEmptyState } from './AdminUI'
+import { AdminPageHeader, AdminStatCard, AdminStatusBadge, AdminEmptyState, STAGE_SHORT } from './AdminUI'
 
 const TXT = {
   title: { hi: 'डैशबोर्ड', en: 'Dashboard' },
@@ -18,15 +18,6 @@ const TXT = {
   recent: { hi: 'हाल के ऑर्डर', en: 'Recent orders' },
   viewAll: { hi: 'सभी देखें', en: 'View all' },
   none: { hi: 'अभी तक कोई ऑर्डर नहीं', en: 'No orders yet' },
-}
-
-// टाइल पर छोटे नाम (पूरा नाम aria-label में रहता है)
-const SHORT = {
-  new: { hi: 'नए', en: 'New' },
-  prep: { hi: 'तैयारी', en: 'Prep' },
-  transit: { hi: 'रास्ते में', en: 'On way' },
-  done: { hi: 'पूरे', en: 'Done' },
-  cancelled: { hi: 'रद्द', en: 'Cancelled' },
 }
 
 export default function AdminDashboard() {
@@ -97,7 +88,7 @@ export default function AdminDashboard() {
             aria-label={`${st.label}: ${stats.stageCounts[st.key]}`}
           >
             <b>{stats.stageCounts[st.key]}</b>
-            <span>{SHORT[st.key]?.[lang] || st.label}</span>
+            <span>{STAGE_SHORT[st.key]?.[lang] || st.label}</span>
           </Link>
         ))}
       </div>

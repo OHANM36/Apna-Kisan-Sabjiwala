@@ -6,15 +6,72 @@ import { supabase } from '../supabaseClient'
 import { formatRupee, formatDate, ORDER_STAGES, stageOf, sortOrders } from '../utils/format'
 import { isCod, isCodOnline, isPaid, paymentText } from '../utils/paymentMethods'
 import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
-import { ListPageSkeleton } from '../components/Skeleton'
+import { OrdersSkeleton } from '../components/Skeleton'
+import { useLanguage } from '../context/LanguageContext'
+import Icon from './AdminIcons'
+import { AdminPageHeader, AdminSearchBar, AdminBottomSheet, AdminStatusBadge, AdminEmptyState, STAGE_SHORT } from './AdminUI'
 import CancelOrderModal from './CancelOrderModal'
 // लेबल-प्रिंट का भारी हिस्सा (QR लाइब्रेरी सहित) सिर्फ़ तब डाउनलोड होता है जब एडमिन प्रिंट खोले
 const LabelPrintDialog = lazy(() => import('../labels/LabelPrintDialog'))
 import { S, nextAction, canCancel, isFinal, refundRequired, describeStatusError, STALE_MESSAGE } from '../utils/orderFlow'
 
-const KINDS = ['सभी', 'AI सहायक', 'COD']
+const KINDS = ['सभी', 'ऑनलाइन', 'COD', 'AI सहायक']
+const KIND_LABEL = {
+  'सभी': { hi: 'सभी', en: 'All' },
+  'ऑनलाइन': { hi: 'ऑनलाइन', en: 'Online' },
+  COD: { hi: 'COD', en: 'COD' },
+  'AI सहायक': { hi: 'AI सहायक', en: 'AI Assistant' },
+}
+const STAGE_DOT = { new: 'bg-blue-600', prep: 'bg-amber-500', transit: 'bg-purple-600', done: 'bg-emerald-600', cancelled: 'bg-red-600' }
+
+const TXT = {
+  title: { hi: 'ऑर्डर', en: 'Orders' },
+  search: { hi: 'ऑर्डर नंबर, नाम या फ़ोन खोजें', en: 'Search order no., name or phone' },
+  clear: { hi: 'हटाएँ', en: 'Clear' },
+  all: { hi: 'सभी', en: 'All' },
+  items: { hi: 'आइटम', en: 'items' },
+  show: { hi: 'दिखाएँ', en: 'Show' },
+  hide: { hi: 'छिपाएँ', en: 'Hide' },
+  details: { hi: 'विवरण', en: 'Details' },
+  hideDetails: { hi: 'विवरण छिपाएँ', en: 'Hide details' },
+  more: { hi: 'और विकल्प', en: 'More options' },
+  moreTitle: { hi: 'ऑर्डर के विकल्प', en: 'Order options' },
+  whatsapp: { hi: 'WhatsApp', en: 'WhatsApp' },
+  waTitle: { hi: 'WhatsApp अपडेट', en: 'WhatsApp update' },
+  waHelp: { hi: 'संदेश (भेजने से पहले बदल सकते हैं)', en: 'Message (you can edit it before sending)' },
+  waReset: { hi: 'दोबारा बनाएँ', en: 'Regenerate' },
+  waOpen: { hi: 'WhatsApp खोलें', en: 'Open WhatsApp' },
+  printLabel: { hi: 'लेबल प्रिंट', en: 'Print label' },
+  previewPrint: { hi: 'लेबल प्रीव्यू / प्रिंट', en: 'Preview / print label' },
+  cancelOrder: { hi: 'ऑर्डर रद्द करें', en: 'Cancel order' },
+  cancelShort: { hi: 'रद्द करें', en: 'Cancel' },
+  wait: { hi: 'कृपया रुकें...', en: 'Please wait...' },
+  selected: { hi: 'चुने', en: 'selected' },
+  selectVisible: { hi: 'सभी चुनें', en: 'Select visible' },
+  clearSel: { hi: 'हटाएँ', en: 'Clear' },
+  printSelected: { hi: 'लेबल प्रिंट', en: 'Print labels' },
+  printSelectedFull: { hi: 'चुने हुए लेबल प्रिंट करें (Print Selected Labels)', en: 'Print selected labels' },
+  empty: { hi: 'इस चयन में कोई ऑर्डर नहीं', en: 'No orders in this selection' },
+  delivery: { hi: 'डिलीवरी', en: 'Delivery' },
+  pin: { hi: 'डिलीवरी पिन', en: 'Delivery PIN' },
+  mapFull: { hi: 'Google Maps में पूरा मार्ग देखें', en: 'Open route in Google Maps' },
+  mapSearch: { hi: 'पते से मानचित्र पर खोजें (GPS लोकेशन उपलब्ध नहीं थी)', en: 'Search address on map (no GPS location)' },
+  dismiss: { hi: 'बंद करें', en: 'Dismiss' },
+  reason: { hi: 'कारण', en: 'Reason' },
+  payment: { hi: 'भुगतान', en: 'Payment' },
+  codUpi: { hi: 'डिलीवरी पर UPI', en: 'UPI on delivery' },
+  codCash: { hi: 'कैश ऑन डिलीवरी', en: 'Cash on delivery' },
+  select: { hi: 'लेबल के लिए चुनें', en: 'Select for label' },
+  close: { hi: 'बंद करें', en: 'Close' },
+  shown: { hi: 'ऑर्डर दिख रहे हैं', en: 'orders shown' },
+}
 
 export default function AdminOrders() {
+  const { language } = useLanguage()
+  const lang = language === 'en' ? 'en' : 'hi'
+  const t = (k) => TXT[k][lang]
+  const [search, setSearch] = useState('')
+  const [moreFor, setMoreFor] = useState(null) // "और विकल्प" शीट वाले ऑर्डर की id
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [params] = useSearchParams()
@@ -119,11 +176,15 @@ export default function AdminOrders() {
     setWaOrder(o.id)
   }
 
-  const byKind = kind === 'AI सहायक'
-    ? orders.filter((o) => o.order_source === 'AI सहायक')
-    : kind === 'COD'
-    ? orders.filter((o) => isCod(o))
-    : orders
+  const q = search.trim().toLowerCase()
+  const byKind = orders
+    .filter((o) =>
+      kind === 'AI सहायक' ? o.order_source === 'AI सहायक'
+      : kind === 'COD' ? isCod(o)
+      : kind === 'ऑनलाइन' ? !isCod(o)
+      : true)
+    .filter((o) =>
+      !q || [o.order_number, o.customer_name, o.customer_phone].some((v) => String(v || '').toLowerCase().includes(q)))
 
   const toggleSelect = (id) =>
     setSelected((prev) => {
@@ -142,26 +203,150 @@ export default function AdminOrders() {
     .map((st) => ({ st, list: sortOrders(byKind.filter((o) => stageOf(o).key === st.key)) }))
     .filter((g) => g.list.length > 0)
 
-  const chip = (active) =>
-    `whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-      active ? 'bg-kisan text-white border-kisan' : 'bg-white text-gray-500 border-gray-200'
-    }`
+  const moreOrder = moreFor ? orders.find((o) => o.id === moreFor) : null
+  const waOrderObj = waOrder ? orders.find((o) => o.id === waOrder) : null
+  const waDisabled = (o) => customerWhatsAppNumber(o.customer_phone).length < 10
 
-  if (loading) return <ListPageSkeleton chips={2} count={4} />
+  if (loading) return <OrdersSkeleton />
+
+  const fmtPlain = (o) => formatDate(o.created_at, lang)
+  const stageLabelFor = (key) => STAGE_SHORT[key]?.[lang] || key
+
+  function renderCard(o) {
+    const busy = busyId === o.id
+    const next = nextAction(o.order_status)
+    const final = isFinal(o.order_status)
+    const isOpen = expanded === o.id
+    const newLike = (o.order_status === S.NEW || o.order_status === S.PAID) && canCancel(o.order_status)
+    const itemsCount = (o.order_items || []).length
+    const addr = `${o.full_address || ''}${o.mohalla ? `, ${o.mohalla}` : ''}${o.city ? `, ${o.city}` : ''}`
+    return (
+      <article key={o.id} className={`oc ${selected.has(o.id) ? 'is-selected' : ''}`}>
+        <div className="oc-head">
+          <label className="oc-check" aria-label={`${o.order_number} ${t('select')}`}>
+            <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleSelect(o.id)} />
+          </label>
+          <button type="button" className="oc-main" onClick={() => setExpanded(isOpen ? null : o.id)} aria-expanded={isOpen}>
+            <span className="oc-row">
+              <span className="oc-num">{o.order_number}</span>
+              <span className="oc-amt">{formatRupee(o.total_amount)}</span>
+            </span>
+            <span className="oc-sub">{o.customer_name} • {o.customer_phone}</span>
+          </button>
+        </div>
+
+        <div className="oc-chips">
+          <StatusBadge status={o.order_status} />
+          <span className={`oc-pill ${isPaid(o) ? 'green' : 'amber'}`}>{t('payment')}: {paymentText(o)}</span>
+          {isCod(o) && <span className="oc-pill amber">{isCodOnline(o) ? t('codUpi') : t('codCash')}</span>}
+          {o.order_source && o.order_source !== 'वेबसाइट' && <span className="oc-pill purple">{o.order_source}</span>}
+        </div>
+
+        {addr.trim() && <p className="oc-addr">{addr}</p>}
+        <p className="oc-meta">
+          {itemsCount} {t('items')} • {o.delivery_date} {o.delivery_time_slot ? `• ${o.delivery_time_slot}` : ''} • {fmtPlain(o)}
+        </p>
+
+        {refundRequired(o) && (
+          <p className="admin-note red mt-2 font-bold">
+            {lang === 'en'
+              ? `Refund required — the customer's online payment (${formatRupee(o.total_amount)}) has not been returned yet. Payment: successful`
+              : `रिफंड ज़रूरी — ग्राहक का ऑनलाइन भुगतान (${formatRupee(o.total_amount)}) अभी वापस नहीं हुआ। भुगतान: सफल`}
+          </p>
+        )}
+        {o.order_status === S.CANCELLED && o.cancel_reason && (
+          <p className="oc-meta">{t('reason')}: {o.cancel_reason}</p>
+        )}
+
+        {isOpen && (
+          <div className="oc-details">
+            <p>{addr}{o.pincode ? ` - ${o.pincode}` : ''}</p>
+            <p>{t('delivery')}: {o.delivery_date} • {o.delivery_time_slot}</p>
+            {o.delivery_pin && <p>{t('pin')}: <b className="font-mono">{o.delivery_pin}</b></p>}
+
+            {o.latitude && o.longitude ? (
+              <div className="mb-2">
+                <iframe
+                  title={`map-${o.id}`}
+                  className="oc-map"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${o.longitude - 0.006}%2C${o.latitude - 0.006}%2C${o.longitude + 0.006}%2C${o.latitude + 0.006}&layer=mapnik&marker=${o.latitude}%2C${o.longitude}`}
+                  loading="lazy"
+                />
+                <a href={`https://www.google.com/maps?q=${o.latitude},${o.longitude}`} target="_blank" rel="noreferrer" className="oc-maplink">
+                  <Icon name="pin" size={17} /> {t('mapFull')}
+                </a>
+              </div>
+            ) : (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.full_address}, ${o.mohalla || ''}, ${o.city} - ${o.pincode}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="oc-maplink"
+              >
+                <Icon name="pin" size={17} /> {t('mapSearch')}
+              </a>
+            )}
+
+            <div className="oc-items mb-2">
+              {(o.order_items || []).map((i) => (
+                <div key={i.id}>
+                  <span>{i.vegetable_name} x {i.quantity} {i.unit}{i.seller_name ? ` (${i.seller_name})` : ''}</span>
+                  <span>{formatRupee(i.item_total)}</span>
+                </div>
+              ))}
+            </div>
+            {isOwner && <OrderProfit orderId={o.id} />}
+          </div>
+        )}
+
+        <div className="oc-actions">
+          {!final && next && (
+            <button type="button" onClick={() => advance(o)} disabled={busy} className="admin-btn admin-btn-primary oc-primary">
+              {busy ? t('wait') : next.label}
+            </button>
+          )}
+          {final && (
+            <>
+              <button type="button" onClick={() => setExpanded(isOpen ? null : o.id)} className="admin-btn admin-btn-outline oc-primary">
+                {isOpen ? t('hideDetails') : t('details')}
+              </button>
+              <button type="button" onClick={() => setPrintOrders([o])} className="admin-btn admin-btn-outline oc-primary">
+                <Icon name="printer" size={18} /> {t('printLabel')}
+              </button>
+            </>
+          )}
+          {!final && newLike && (
+            <button type="button" onClick={() => openCancel(o)} disabled={busy} className="admin-btn admin-btn-danger-outline">
+              {t('cancelShort')}
+            </button>
+          )}
+          {!final && !newLike && (
+            <button
+              type="button"
+              onClick={() => openWa(o)}
+              disabled={waDisabled(o)}
+              aria-label={t('waTitle')}
+              className="admin-btn admin-btn-wa has-label-sm"
+            >
+              <Icon name="message" size={18} /> <span className="oc-wa-label">{t('whatsapp')}</span>
+            </button>
+          )}
+          <button type="button" onClick={() => setMoreFor(o.id)} className="admin-btn admin-btn-outline admin-btn-icon" aria-label={t('more')} aria-haspopup="dialog">
+            <Icon name="more" size={20} />
+          </button>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <div>
-      <h1 className="font-extrabold text-xl text-gray-800 mb-5">ऑर्डर प्रबंधन</h1>
+      <AdminPageHeader title={t('title')} subtitle={`${byKind.filter((o) => stage === 'all' || stageOf(o).key === stage).length} ${t('shown')}`} />
 
       {notice && (
-        <div
-          role="alert"
-          className={`mb-4 flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold ${
-            notice.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-200 text-blue-700'
-          }`}
-        >
+        <div role="alert" className={`admin-note ${notice.type === 'error' ? 'red' : 'blue'} mb-3 flex items-start justify-between gap-3 font-semibold`}>
           <span>{notice.text}</span>
-          <button onClick={() => setNotice(null)} className="text-xs font-bold opacity-70 shrink-0">बंद करें</button>
+          <button type="button" onClick={() => setNotice(null)} className="text-xs font-bold shrink-0 min-h-[44px] -my-3 px-1">{t('dismiss')}</button>
         </div>
       )}
 
@@ -175,252 +360,134 @@ export default function AdminOrders() {
         />
       )}
 
-      {selected.size > 0 && (
-        <div className="sticky top-2 z-30 mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-white border-2 border-kisan shadow-md px-3 py-2">
-          <span className="text-sm font-bold text-gray-700">{selected.size} ऑर्डर चुने</span>
-          <button type="button" onClick={() => setSelected(new Set(visibleIds))} className="text-xs font-bold text-gray-600 underline min-h-[36px] px-1">सभी दिख रहे चुनें</button>
-          <button type="button" onClick={() => setSelected(new Set())} className="text-xs font-bold text-gray-600 underline min-h-[36px] px-1">चयन हटाएँ</button>
-          <button
-            type="button"
-            onClick={() => setPrintOrders(selectedOrders())}
-            className="ml-auto min-h-[44px] px-4 rounded-xl bg-kisan text-white text-sm font-bold active:scale-95 transition-transform"
-          >
-            🖨 चुने हुए लेबल प्रिंट करें (Print Selected Labels)
-          </button>
-        </div>
-      )}
-
       {printOrders && (
         <Suspense fallback={null}>
-          <LabelPrintDialog
-            orders={printOrders}
-            onClose={() => setPrintOrders(null)}
-            onPrinted={() => loadOrders({ silent: true })}
-          />
+          <LabelPrintDialog orders={printOrders} onClose={() => setPrintOrders(null)} onPrinted={() => loadOrders({ silent: true })} />
         </Suspense>
       )}
 
-      <div className="mb-4 flex flex-col gap-2">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="text-[11px] font-bold text-gray-400 shrink-0 w-16">प्रकार</span>
-          {KINDS.map((k) => (
-            <button key={k} onClick={() => setKind(k)} className={chip(kind === k)}>{k === 'AI सहायक' ? '🤖 ' : k === 'COD' ? '💵 ' : ''}{k}</button>
+      <AdminSearchBar value={search} onChange={setSearch} placeholder={t('search')} clearLabel={t('clear')} className="mb-3" />
+
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="admin-filter-row" role="group" aria-label={t('title')}>
+          <button type="button" className="admin-fchip" aria-pressed={stage === 'all'} onClick={() => setStage('all')}>
+            {t('all')}<b>{byKind.length}</b>
+          </button>
+          {ORDER_STAGES.map((st) => (
+            <button key={st.key} type="button" className="admin-fchip" aria-pressed={stage === st.key} onClick={() => setStage(st.key)}>
+              {stageLabelFor(st.key)}<b>{stageCount(st.key)}</b>
+            </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="text-[11px] font-bold text-gray-400 shrink-0 w-16">स्थिति</span>
-          <button onClick={() => setStage('all')} className={chip(stage === 'all')}>सभी ({byKind.length})</button>
-          {ORDER_STAGES.map((st) => (
-            <button key={st.key} onClick={() => setStage(st.key)} className={chip(stage === st.key)}>
-              {st.icon} {st.label} ({stageCount(st.key)})
+        <div className="admin-filter-row" role="group">
+          {KINDS.map((k) => (
+            <button key={k} type="button" className="admin-fchip is-small" aria-pressed={kind === k} onClick={() => setKind(k)}>
+              {KIND_LABEL[k][lang]}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div>
         {groups.map(({ st, list }) => {
           const isCollapsed = stage === 'all' && collapsed[st.key]
           return (
-          <section key={st.key}>
-            <button
-              onClick={() => setCollapsed((c) => ({ ...c, [st.key]: !c[st.key] }))}
-              className={`w-full flex items-center justify-between rounded-xl border px-4 py-2 mb-3 ${st.tone}`}
-            >
-              <span className="font-extrabold text-sm">{st.icon} {st.label} <span className="font-bold opacity-70">({list.length})</span></span>
-              {stage === 'all' && <span className="text-xs font-bold">{isCollapsed ? 'दिखाएँ ▾' : 'छिपाएँ ▴'}</span>}
-            </button>
-            {!isCollapsed && (
-            <div className="flex flex-col gap-3">
-        {list.map((o) => (
-          <div key={o.id} className="bg-white rounded-2xl shadow-sm p-4">
-            <div className="flex justify-between items-start cursor-pointer" onClick={() => setExpanded(expanded === o.id ? null : o.id)}>
-              <label
-                className="shrink-0 -ml-2 -mt-2 mr-1 w-11 h-11 flex items-center justify-center cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`${o.order_number} लेबल के लिए चुनें`}
-              >
-                <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleSelect(o.id)} className="w-5 h-5 accent-green-700" />
-              </label>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-800 text-sm">{o.order_number}</p>
-                <p className="text-xs text-gray-500">{o.customer_name} • {o.customer_phone}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatDate(o.created_at)}</p>
-                {o.order_source && o.order_source !== 'वेबसाइट' && (
-                  <span className="inline-block mt-1 text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                    🤖 {o.order_source}
-                  </span>
-                )}
-                {isCod(o) && (
-                  <span className="inline-block mt-1 ml-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                    {isCodOnline(o) ? '📲 डिलीवरी पर UPI' : '💵 कैश ऑन डिलीवरी'}
-                  </span>
-                )}
-              </div>
-              <div className="text-right">
-                <p className="font-extrabold text-gray-800">{formatRupee(o.total_amount)}</p>
-                <p className={`text-xs font-bold ${isPaid(o) ? 'text-kisan' : 'text-orange-500'}`}>
-                  भुगतान: {paymentText(o)}
-                </p>
-              </div>
-            </div>
-
-            {expanded === o.id && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500 mb-2">{o.full_address}{o.mohalla ? `, ${o.mohalla}` : ''}, {o.city} - {o.pincode}</p>
-                <p className="text-xs text-gray-500 mb-2">डिलीवरी: {o.delivery_date} • {o.delivery_time_slot}</p>
-                {o.delivery_pin && (
-                  <p className="text-xs text-gray-500 mb-2">डिलीवरी पिन: <span className="font-mono font-bold text-gray-700">{o.delivery_pin}</span></p>
-                )}
-
-                {o.latitude && o.longitude ? (
-                  <div className="mb-3">
-                    <iframe
-                      title={`map-${o.id}`}
-                      className="w-full h-48 rounded-xl border border-gray-200"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${o.longitude - 0.006}%2C${o.latitude - 0.006}%2C${o.longitude + 0.006}%2C${o.latitude + 0.006}&layer=mapnik&marker=${o.latitude}%2C${o.longitude}`}
-                      loading="lazy"
-                    />
-                    <a
-                      href={`https://www.google.com/maps?q=${o.latitude},${o.longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 mt-2"
-                    >
-                      🗺️ Google Maps में पूरा मार्ग देखें
-                    </a>
-                  </div>
-                ) : (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      `${o.full_address}, ${o.mohalla || ''}, ${o.city} - ${o.pincode}`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 mb-3"
-                  >
-                    🗺️ पते से मानचित्र पर खोजें (GPS लोकेशन उपलब्ध नहीं थी)
-                  </a>
-                )}
-
-                <div className="flex flex-col gap-1 mb-3">
-                  {o.order_items.map((i) => (
-                    <div key={i.id} className="flex justify-between text-xs text-gray-600">
-                      <span>{i.vegetable_name} x {i.quantity} {i.unit}{i.seller_name ? ` (${i.seller_name})` : ''}</span>
-                      <span>{formatRupee(i.item_total)}</span>
-                    </div>
-                  ))}
-                </div>
-                {isOwner && <OrderProfit orderId={o.id} />}
-                <div className="flex gap-2 mt-3">
-                  <button type="button" onClick={() => setPrintOrders([o])} className="flex-1 min-h-[44px] border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl active:scale-95 transition-transform">
-                    👁 लेबल प्रीव्यू (Preview Label)
-                  </button>
-                  <button type="button" onClick={() => setPrintOrders([o])} className="flex-1 min-h-[44px] bg-kisan text-white text-sm font-bold rounded-xl active:scale-95 transition-transform">
-                    🖨 लेबल प्रिंट (Print Label)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setPrintOrders([o])}
-              className="mt-3 w-full min-h-[44px] border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl active:scale-95 transition-transform"
-            >
-              🖨 लेबल प्रिंट (Print Label)
-            </button>
-
-            <div className="mt-3">
-              <StatusBadge status={o.order_status} />
-              {refundRequired(o) && (
-                <p className="mt-2 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                  ⚠️ रिफंड ज़रूरी — ग्राहक का ऑनलाइन भुगतान ({formatRupee(o.total_amount)}) अभी वापस नहीं हुआ। भुगतान: सफल
-                </p>
-              )}
-              {o.order_status === S.CANCELLED && o.cancel_reason && (
-                <p className="mt-2 text-xs text-gray-500">कारण: {o.cancel_reason}</p>
-              )}
-              {!isFinal(o.order_status) && (
-                <div className="flex gap-2 mt-2">
-                  {nextAction(o.order_status) && (
-                    <button
-                      onClick={() => advance(o)}
-                      disabled={busyId === o.id}
-                      className="flex-1 bg-kisan text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      {busyId === o.id ? 'कृपया रुकें...' : nextAction(o.order_status).label}
-                    </button>
-                  )}
-                  {canCancel(o.order_status) && (
-                    <button
-                      onClick={() => openCancel(o)}
-                      disabled={busyId === o.id}
-                      className="px-4 border-2 border-gray-300 text-gray-600 text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-50"
-                    >
-                      ऑर्डर रद्द करें
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-3">
+            <section key={st.key} className="oc-group">
               <button
-                onClick={() => openWa(o)}
-                disabled={customerWhatsAppNumber(o.customer_phone).length < 10}
-                className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold py-2.5 rounded-xl active:scale-95 transition-transform disabled:opacity-40"
+                type="button"
+                className="oc-group-head"
+                aria-expanded={!isCollapsed}
+                disabled={stage !== 'all'}
+                onClick={() => setCollapsed((c) => ({ ...c, [st.key]: !c[st.key] }))}
               >
-                <span>📲</span> ग्राहक को WhatsApp अपडेट भेजें
+                <span className={`oc-dot ${STAGE_DOT[st.key]}`} />
+                <span>{st.label} <span className="cnt">({list.length})</span></span>
+                {stage === 'all' && (
+                  <span className="tog">{isCollapsed ? t('show') : t('hide')} <Icon name="chevronDown" size={16} /></span>
+                )}
               </button>
-              {waOrder === o.id && (
-                <div className="mt-2 border border-green-200 bg-green-50 rounded-xl p-3">
-                  <p className="text-xs font-semibold text-gray-600 mb-1">संदेश (भेजने से पहले बदल सकते हैं) — {o.customer_name} • {o.customer_phone}</p>
-                  <textarea
-                    value={waText}
-                    onChange={(e) => setWaText(e.target.value)}
-                    rows={8}
-                    className="w-full text-sm border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-kisan"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => setWaText(buildCustomerUpdateText(o, window.location.origin))}
-                      className="flex-1 text-xs font-bold text-gray-600 border border-gray-300 rounded-lg py-2"
-                    >
-                      स्थिति के हिसाब से दोबारा बनाएँ
-                    </button>
-                    <a
-                      href={buildCustomerWhatsAppLink(o.customer_phone, waText)}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setWaOrder(null)}
-                      className="flex-1 text-center text-xs font-bold bg-[#25D366] text-white rounded-lg py-2"
-                    >
-                      WhatsApp खोलें
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-            </div>
-            )}
-          </section>
+              {!isCollapsed && <div className="oc-list">{list.map(renderCard)}</div>}
+            </section>
           )
         })}
+
         {orders.length >= limit && (
-          <button onClick={() => setLimit((l) => l + 200)} className="btn-outline w-full">
-            पुराने ऑर्डर लोड करें (अभी सबसे नए {limit} दिख रहे हैं)
+          <button type="button" onClick={() => setLimit((l) => l + 200)} className="admin-btn admin-btn-outline admin-btn-block mt-4">
+            {lang === 'en' ? `Load older orders (showing latest ${limit})` : `पुराने ऑर्डर लोड करें (अभी सबसे नए ${limit} दिख रहे हैं)`}
           </button>
         )}
-        {groups.length === 0 && <p className="text-gray-400 text-center py-10">इस चयन में कोई ऑर्डर नहीं</p>}
+        {groups.length === 0 && (
+          <div className="admin-card"><AdminEmptyState icon="orders" text={t('empty')} /></div>
+        )}
+        {selected.size > 0 && <div style={{ height: 84 }} aria-hidden="true" />}
       </div>
+
+      {selected.size > 0 && (
+        <div className="admin-selbar" role="region" aria-label={t('printSelectedFull')}>
+          <span className="cnt">{selected.size} {t('selected')}</span>
+          <button type="button" className="lnk" onClick={() => setSelected(new Set(visibleIds))}>{t('selectVisible')}</button>
+          <button type="button" className="lnk" onClick={() => setSelected(new Set())}>{t('clearSel')}</button>
+          <button type="button" className="admin-btn admin-btn-primary" onClick={() => setPrintOrders(selectedOrders())} aria-label={t('printSelectedFull')}>
+            <Icon name="printer" size={18} /> {t('printSelected')}
+          </button>
+        </div>
+      )}
+
+      {moreOrder && (
+        <AdminBottomSheet title={`${t('moreTitle')} • ${moreOrder.order_number}`} onClose={() => setMoreFor(null)} closeLabel={t('close')} labelId="more-title">
+          <div>
+            <button type="button" className="admin-menu-item" onClick={() => { setMoreFor(null); openWa(moreOrder) }} disabled={waDisabled(moreOrder)}>
+              <Icon name="message" size={22} /> {t('waTitle')}
+            </button>
+            <button type="button" className="admin-menu-item" onClick={() => { setMoreFor(null); setPrintOrders([moreOrder]) }}>
+              <Icon name="printer" size={22} /> {t('previewPrint')}
+            </button>
+            <button type="button" className="admin-menu-item" onClick={() => { setExpanded(expanded === moreOrder.id ? null : moreOrder.id); setMoreFor(null) }}>
+              <Icon name="eye" size={22} /> {expanded === moreOrder.id ? t('hideDetails') : t('details')}
+            </button>
+            {!isFinal(moreOrder.order_status) && canCancel(moreOrder.order_status) && (
+              <button type="button" className="admin-menu-item danger" onClick={() => { setMoreFor(null); openCancel(moreOrder) }} disabled={busyId === moreOrder.id}>
+                <Icon name="close" size={22} /> {t('cancelOrder')}
+              </button>
+            )}
+          </div>
+        </AdminBottomSheet>
+      )}
+
+      {waOrderObj && (
+        <AdminBottomSheet
+          title={t('waTitle')}
+          onClose={() => setWaOrder(null)}
+          closeLabel={t('close')}
+          labelId="wa-title"
+          footer={
+            <>
+              <button type="button" className="admin-btn admin-btn-outline" onClick={() => setWaText(buildCustomerUpdateText(waOrderObj, window.location.origin))}>
+                {t('waReset')}
+              </button>
+              <a
+                href={buildCustomerWhatsAppLink(waOrderObj.customer_phone, waText)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setWaOrder(null)}
+                className="admin-btn admin-btn-wa"
+              >
+                <Icon name="external" size={18} /> {t('waOpen')}
+              </a>
+            </>
+          }
+        >
+          <p className="text-[13px] text-gray-600 mb-2 font-semibold">
+            {t('waHelp')} — {waOrderObj.customer_name} • {waOrderObj.customer_phone}
+          </p>
+          <textarea value={waText} onChange={(e) => setWaText(e.target.value)} rows={9} className="admin-input" style={{ resize: 'vertical' }} />
+        </AdminBottomSheet>
+      )}
     </div>
   )
 }
 
-// स्थिति का बैज — अंतिम स्थितियों पर 🔒 (कोई बदलाव-नियंत्रण नहीं)
+// स्थिति का बैज (टेक्स्ट हमेशा दिखता है; रंग सिर्फ़ मदद करता है)
 const BADGE_TONE = {
   [S.NEW]: 'bg-blue-50 text-blue-700 border-blue-200',
   [S.PAID]: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -431,12 +498,5 @@ const BADGE_TONE = {
   [S.CANCELLED]: 'bg-red-50 text-red-700 border-red-200',
 }
 function StatusBadge({ status }) {
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-extrabold px-3 py-1 rounded-full border ${BADGE_TONE[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-      {status === S.DELIVERED && '✓ '}
-      {status === S.CANCELLED && '✕ '}
-      {status}
-      {isFinal(status) && ' 🔒'}
-    </span>
-  )
+  return <AdminStatusBadge label={status} tone={BADGE_TONE[status] || 'bg-gray-50 text-gray-600 border-gray-200'} />
 }
