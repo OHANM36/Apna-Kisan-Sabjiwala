@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAdminAuth } from '../context/AdminAuthContext'
 import OrderProfit from '../pricing/ui/OrderProfit'
@@ -8,6 +8,8 @@ import { isCod, isCodOnline, isPaid, paymentText } from '../utils/paymentMethods
 import { buildCustomerUpdateText, buildCustomerWhatsAppLink, customerWhatsAppNumber } from '../utils/whatsapp'
 import { ListPageSkeleton } from '../components/Skeleton'
 import CancelOrderModal from './CancelOrderModal'
+// लेबल-प्रिंट का भारी हिस्सा (QR लाइब्रेरी सहित) सिर्फ़ तब डाउनलोड होता है जब एडमिन प्रिंट खोले
+const LabelPrintDialog = lazy(() => import('../labels/LabelPrintDialog'))
 import { S, nextAction, canCancel, isFinal, refundRequired, describeStatusError, STALE_MESSAGE } from '../utils/orderFlow'
 
 const KINDS = ['सभी', 'AI सहायक', 'COD']
@@ -29,6 +31,8 @@ export default function AdminOrders() {
   const [notice, setNotice] = useState(null)      // {type:'error'|'info', text}
   const [cancelFor, setCancelFor] = useState(null) // रद्द-पुष्टि मॉडल वाला ऑर्डर
   const [cancelError, setCancelError] = useState('')
+  const [selected, setSelected] = useState(() => new Set()) // लेबल छापने के लिए चुने ऑर्डर (id)
+  const [printOrders, setPrintOrders] = useState(null)       // खुले लेबल-डायलॉग के ऑर्डर
 
   useEffect(() => {
     loadOrders()
@@ -121,6 +125,17 @@ export default function AdminOrders() {
     ? orders.filter((o) => isCod(o))
     : orders
 
+  const toggleSelect = (id) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const selectedOrders = () =>
+    orders.filter((o) => selected.has(o.id)).sort((a, b) => String(a.order_number).localeCompare(String(b.order_number)))
+  const visibleIds = byKind.filter((o) => stage === 'all' || stageOf(o).key === stage).map((o) => o.id)
+
   const stageCount = (key) => byKind.filter((o) => stageOf(o).key === key).length
   const visibleStages = ORDER_STAGES.filter((st) => stage === 'all' || stage === st.key)
   const groups = visibleStages
@@ -160,6 +175,31 @@ export default function AdminOrders() {
         />
       )}
 
+      {selected.size > 0 && (
+        <div className="sticky top-2 z-30 mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-white border-2 border-kisan shadow-md px-3 py-2">
+          <span className="text-sm font-bold text-gray-700">{selected.size} ऑर्डर चुने</span>
+          <button type="button" onClick={() => setSelected(new Set(visibleIds))} className="text-xs font-bold text-gray-600 underline min-h-[36px] px-1">सभी दिख रहे चुनें</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="text-xs font-bold text-gray-600 underline min-h-[36px] px-1">चयन हटाएँ</button>
+          <button
+            type="button"
+            onClick={() => setPrintOrders(selectedOrders())}
+            className="ml-auto min-h-[44px] px-4 rounded-xl bg-kisan text-white text-sm font-bold active:scale-95 transition-transform"
+          >
+            🖨 चुने हुए लेबल प्रिंट करें (Print Selected Labels)
+          </button>
+        </div>
+      )}
+
+      {printOrders && (
+        <Suspense fallback={null}>
+          <LabelPrintDialog
+            orders={printOrders}
+            onClose={() => setPrintOrders(null)}
+            onPrinted={() => loadOrders({ silent: true })}
+          />
+        </Suspense>
+      )}
+
       <div className="mb-4 flex flex-col gap-2">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <span className="text-[11px] font-bold text-gray-400 shrink-0 w-16">प्रकार</span>
@@ -195,7 +235,14 @@ export default function AdminOrders() {
         {list.map((o) => (
           <div key={o.id} className="bg-white rounded-2xl shadow-sm p-4">
             <div className="flex justify-between items-start cursor-pointer" onClick={() => setExpanded(expanded === o.id ? null : o.id)}>
-              <div>
+              <label
+                className="shrink-0 -ml-2 -mt-2 mr-1 w-11 h-11 flex items-center justify-center cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`${o.order_number} लेबल के लिए चुनें`}
+              >
+                <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleSelect(o.id)} className="w-5 h-5 accent-green-700" />
+              </label>
+              <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-800 text-sm">{o.order_number}</p>
                 <p className="text-xs text-gray-500">{o.customer_name} • {o.customer_phone}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{formatDate(o.created_at)}</p>
@@ -265,8 +312,24 @@ export default function AdminOrders() {
                   ))}
                 </div>
                 {isOwner && <OrderProfit orderId={o.id} />}
+                <div className="flex gap-2 mt-3">
+                  <button type="button" onClick={() => setPrintOrders([o])} className="flex-1 min-h-[44px] border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl active:scale-95 transition-transform">
+                    👁 लेबल प्रीव्यू (Preview Label)
+                  </button>
+                  <button type="button" onClick={() => setPrintOrders([o])} className="flex-1 min-h-[44px] bg-kisan text-white text-sm font-bold rounded-xl active:scale-95 transition-transform">
+                    🖨 लेबल प्रिंट (Print Label)
+                  </button>
+                </div>
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => setPrintOrders([o])}
+              className="mt-3 w-full min-h-[44px] border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl active:scale-95 transition-transform"
+            >
+              🖨 लेबल प्रिंट (Print Label)
+            </button>
 
             <div className="mt-3">
               <StatusBadge status={o.order_status} />

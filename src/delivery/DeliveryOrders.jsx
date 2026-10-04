@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useDeliveryAuth } from '../context/DeliveryAuthContext'
 import { formatRupee } from '../utils/format'
@@ -288,6 +289,7 @@ function CardsSkeleton() {
 
 export default function DeliveryOrders() {
   const { deliveryBoy, token, logout } = useDeliveryAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState('available')
   const [data, setData] = useState({ available: [], mine: [], done: [] })
   const [loading, setLoading] = useState(true)
@@ -407,6 +409,21 @@ export default function DeliveryOrders() {
     }, 20000)
     return () => clearInterval(id)
   }, [loadOrders])
+
+  // पार्सल के लेबल का QR स्कैन करने पर (/delivery?o=<ऑर्डर नंबर>): वही ऑर्डर खुल जाए (लॉगिन के बाद ही; सूची वही RPC देता है)
+  const scanNo = searchParams.get('o')
+  useEffect(() => {
+    if (!scanNo || loading) return
+    const hit = ['mine', 'available', 'done'].map((k) => [k, data[k].find((x) => x.order_number === scanNo)]).find(([, x]) => x)
+    if (hit) {
+      setTab(hit[0])
+      setExpanded(hit[1].id)
+      setOpenId(hit[1].id)
+    } else {
+      showToast('यह ऑर्डर आपकी सूची में नहीं है (किसी और की डिलीवरी में, या रद्द/पूरा)।', 'err')
+    }
+    setSearchParams({}, { replace: true })
+  }, [scanNo, loading, data, showToast, setSearchParams])
 
   async function claimOrder(order) {
     if (busyRef.current) return
