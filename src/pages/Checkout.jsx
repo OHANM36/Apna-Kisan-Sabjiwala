@@ -13,6 +13,7 @@ import { calculateDeliveryFee, minOrderShortfall } from '../pricing/delivery'
 import { tierKeyFromLineId } from '../pricing/cartSync'
 import { safeGet, safeSet, safeRemove, safeJson } from '../utils/safeStorage'
 import { saveMyOrder } from '../utils/myOrders'
+import { syncCustomerPush } from '../utils/customerPush'
 import { friendlyError, withTimeout } from '../utils/errors'
 import { FormSkeleton } from '../components/Skeleton'
 
@@ -280,6 +281,7 @@ export default function Checkout() {
         placed = data
         attempt.current.placed = placed
         saveMyOrder({ id: placed.order_id, token: placed.access_token, orderNumber: placed.order_number })
+        syncCustomerPush() // सूचना पहले चालू की हो तो नया ऑर्डर भी जुड़ जाए (बिना इंतज़ार, गड़बड़ी अनदेखी)
       }
 
       const finish = () => {

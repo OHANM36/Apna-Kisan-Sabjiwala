@@ -12,6 +12,7 @@ import { friendlyError, withTimeout } from '../utils/errors'
 import { useLanguage } from '../context/LanguageContext'
 import { isCod, isCodOnline, isPaid } from '../utils/paymentMethods'
 import { OrderConfirmationSkeleton } from '../components/Skeleton'
+import OrderPushCard from '../components/OrderPushCard'
 
 export default function OrderConfirmation() {
   const { orderId } = useParams()
@@ -156,6 +157,8 @@ export default function OrderConfirmation() {
             })}
           </div>
         </div>
+
+        {!['डिलीवरी पूरी हुई', 'रद्द'].includes(order.order_status) && <OrderPushCard />}
 
         {order.delivery_pin && !['डिलीवरी पूरी हुई', 'रद्द'].includes(order.order_status) && (
           <div className="card p-4 mb-4 border-2 border-kisan-orange bg-kisan-orange/5">

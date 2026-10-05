@@ -37,7 +37,7 @@ self.addEventListener('fetch', (e) => {
   )
 })
 
-// ---- Web Push: ऐप बंद होने पर भी नया-ऑर्डर नोटिफ़िकेशन ----
+// ---- Web Push: ऐप बंद होने पर भी सूचना (एडमिन: नया ऑर्डर; ग्राहक: ऑर्डर की स्थिति बदली) ----
 self.addEventListener('push', (e) => {
   let data = {}
   try {
@@ -52,16 +52,16 @@ self.addEventListener('push', (e) => {
       badge: '/icon-192.png',
       tag: data.tag || 'new-order',
       renotify: true,
-      requireInteraction: true,
+      requireInteraction: data.sticky !== false, // एडमिन की सूचना टिकी रहती है; ग्राहक की (sticky:false) अपने-आप हट सकती है
       vibrate: [200, 100, 200, 100, 200],
-      data: { url: data.url || '/admin/orders' },
+      data: { url: data.url || '/admin/orders' }, // एडमिन payload में url नहीं भी हो तो यही खुलेगा
     }),
   )
 })
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = (e.notification.data && e.notification.data.url) || '/admin/orders'
+  const url = (e.notification.data && e.notification.data.url) || '/'
   e.waitUntil(
     (async () => {
       const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })

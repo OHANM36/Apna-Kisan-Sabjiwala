@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { playStatusChangeSound } from '../utils/soundsLazy'
 import { getMyOrders } from '../utils/myOrders'
+import { syncCustomerPush } from '../utils/customerPush'
 import { useLanguage } from '../context/LanguageContext'
 
 const POLL_MS = 30000
@@ -36,6 +37,7 @@ export default function CustomerOrderWatcher() {
       }
     }
 
+    syncCustomerPush() // ऐप खुलने पर: इस डिवाइस के चालू ऑर्डर की push जुड़ावें ताज़ा करें
     poll()
     const id = setInterval(poll, POLL_MS)
     return () => {

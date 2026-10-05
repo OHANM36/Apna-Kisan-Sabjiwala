@@ -4,23 +4,23 @@ import { isStandalone } from './pwa'
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY
 
-function isIos() {
+export function isIos() {
   const ua = window.navigator.userAgent
   return /iphone|ipad|ipod/i.test(ua) || (ua.includes('Mac') && 'ontouchend' in document)
 }
 
-function pushSupported() {
+export function pushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
-function toKey(base64) {
+export function toKey(base64) {
   const pad = '='.repeat((4 - (base64.length % 4)) % 4)
   const raw = atob((base64 + pad).replace(/-/g, '+').replace(/_/g, '/'))
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
 }
 
 // SW सिर्फ़ production build में रजिस्टर होता है (pwa.js), इसलिए इंतज़ार की सीमा रखते हैं
-function getRegistration(timeoutMs) {
+export function getRegistration(timeoutMs) {
   return Promise.race([
     navigator.serviceWorker.ready,
     new Promise((_, reject) => setTimeout(() => reject(new Error('SW_NOT_READY')), timeoutMs)),
