@@ -57,21 +57,19 @@ function VegetableCard({ veg }) {
     flashAdded()
   }
 
-  // कार्ड पर एक टैप: कार्ट में नहीं है तो जोड़ें; पहले से है तो कुछ नहीं।
+  // कार्ड पर एक टैप: कार्ट में नहीं है तो जोड़ें; है तो किसी भी मात्रा में हटा दें।
   // अंदर के बटन / dropdown (Add, −, +, tier चुनना) अपना काम खुद करते हैं — उन पर यह नहीं चलता।
   const isSelected = tiers ? !!inCartTiered : !!inCartSimple
   function handleCardTap(e) {
     if (e.target.closest('button, select, option, a, input')) return
-    if (unavailable || isSelected) return
-    if (tiers) handleAddTiered()
-    else handleAddSimple()
-  }
-
-  // कार्ड पर डबल टैप: किसी भी मात्रा में कार्ट से हटाएँ।
-  function handleCardDoubleTap(e) {
-    if (e.target.closest('button, select, option, a, input')) return
-    if (unavailable || !isSelected) return
-    removeFromCart(tiers ? selectedTierCartId : veg.id)
+    if (unavailable) return
+    if (isSelected) {
+      removeFromCart(tiers ? selectedTierCartId : veg.id)
+    } else if (tiers) {
+      handleAddTiered()
+    } else {
+      handleAddSimple()
+    }
   }
 
   function flashAdded() {
@@ -88,8 +86,7 @@ function VegetableCard({ veg }) {
   return (
     <div
       onClick={handleCardTap}
-      onDoubleClick={handleCardDoubleTap}
-      className={`card overflow-hidden flex flex-col select-none touch-manipulation ${unavailable ? '' : 'cursor-pointer'}`}
+      className={`card overflow-hidden flex flex-col select-none ${unavailable ? '' : 'cursor-pointer'}`}
     >
       <div className={`relative aspect-square bg-kisan-crate/40 flex items-center justify-center ${veg.image_url && !imgLoaded ? 'animate-pulse bg-gray-200' : ''}`}>
         {hasDiscount && (
