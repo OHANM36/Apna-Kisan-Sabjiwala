@@ -32,6 +32,7 @@ const links = [
 const settingsLinks = [
   { to: '/admin/pricing-settings', labelKey: 'nav_pricing_settings', icon: '🧮', ownerOnly: true },
   { to: '/admin/payment-settings', label: 'भुगतान विकल्प (COD)', icon: '💵', ownerOnly: true },
+  { to: '/admin/business-settings', label: 'दुकान की जानकारी', icon: '📱', ownerOnly: true },
   { to: '/admin/welcome-popup', label: 'स्वागत पॉपअप', icon: '💬' },
 ]
 
