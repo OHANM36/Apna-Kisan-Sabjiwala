@@ -9,7 +9,7 @@ function tierCartId(vegId, tier) {
 }
 
 function VegetableCard({ veg }) {
-  const { items, addToCart, increaseQty, decreaseQty } = useCart()
+  const { items, addToCart, increaseQty, decreaseQty, removeFromCart } = useCart()
   const { t, tName, tUnit } = useLanguage()
   const unavailable = veg.stock_status === 'अनुपलब्ध'
   const [justAdded, setJustAdded] = useState(false)
@@ -57,6 +57,28 @@ function VegetableCard({ veg }) {
     flashAdded()
   }
 
+  // कार्ड पर टैप: कार्ट में नहीं है तो जोड़ें (1); है और मात्रा 1 है तो हटा दें; 1 से ज़्यादा हो तो कुछ न हटाएँ।
+  // अंदर के बटन / dropdown (Add, −, +, tier चुनना) अपना काम खुद करते हैं — उन पर यह नहीं चलता।
+  const isSelected = tiers ? !!inCartTiered : !!inCartSimple
+  function handleCardTap(e) {
+    if (e.target.closest('button, select, option, a, input')) return
+    if (unavailable) return
+    if (isSelected) {
+      // मात्रा 1 से ज़्यादा हो तो गलती से टैप पर लाइन न हटे — सिर्फ़ मात्रा-अंक हिलाकर बताएँ; हटाने के लिए −/+ इस्तेमाल करें
+      const line = tiers ? inCartTiered : inCartSimple
+      if (line.quantity > 1) {
+        setBump(true)
+        setTimeout(() => setBump(false), 350)
+        return
+      }
+      removeFromCart(tiers ? selectedTierCartId : veg.id)
+    } else if (tiers) {
+      handleAddTiered()
+    } else {
+      handleAddSimple()
+    }
+  }
+
   function flashAdded() {
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 600)
@@ -69,7 +91,10 @@ function VegetableCard({ veg }) {
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col">
+    <div
+      onClick={handleCardTap}
+      className={`card overflow-hidden flex flex-col transition-shadow ${unavailable ? '' : 'cursor-pointer'} ${isSelected ? 'ring-2 ring-kisan' : ''}`}
+    >
       <div className={`relative aspect-square bg-kisan-crate/40 flex items-center justify-center ${veg.image_url && !imgLoaded ? 'animate-pulse bg-gray-200' : ''}`}>
         {hasDiscount && (
           <span className="absolute top-1.5 left-1.5 bg-kisan-tomato text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-tight z-10">
@@ -87,6 +112,11 @@ function VegetableCard({ veg }) {
           />
         ) : (
           <VeggieCharacter name={veg.name} className="w-16 h-16" />
+        )}
+        {isSelected && (
+          <span className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-kisan text-white text-sm font-bold flex items-center justify-center shadow">
+            ✓
+          </span>
         )}
         {unavailable && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
