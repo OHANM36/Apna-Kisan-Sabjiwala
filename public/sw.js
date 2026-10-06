@@ -1,9 +1,9 @@
 // सरल service worker: ऐप इंस्टॉल होने लायक बनाता है और ऑफ़लाइन होने पर होम-शेल दिखाता है।
 // सिर्फ़ इसी साइट के GET अनुरोध छूता है — Supabase/Razorpay/API कॉल कभी cache नहीं होते।
-const CACHE = 'aks-shell-v2'
+const CACHE = 'aks-shell-v1'
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/icon-192.png', '/badge-96.png'])).then(() => self.skipWaiting()))
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/icon-192.png'])).then(() => self.skipWaiting()))
 })
 
 self.addEventListener('activate', (e) => {
@@ -49,7 +49,7 @@ self.addEventListener('push', (e) => {
     self.registration.showNotification(data.title || 'नया ऑर्डर आया', {
       body: data.body || '',
       icon: '/icon-192.png',
-      badge: '/badge-96.png', // छोटा सफ़ेद-पारदर्शी आइकन (स्टेटस बार/सूचना के ऊपर); रंगीन लोगो यहाँ चौकोर दिखता है
+      badge: '/icon-192.png',
       tag: data.tag || 'new-order',
       renotify: true,
       requireInteraction: data.sticky !== false, // एडमिन की सूचना टिकी रहती है; ग्राहक की (sticky:false) अपने-आप हट सकती है
