@@ -1,7 +1,7 @@
 # 🥬 अपना किसान सब्ज़ीवाला — ऑनलाइन सब्ज़ी ऑर्डरिंग ऐप
 
 एक पूरी तरह काम करने वाला ऑनलाइन सब्ज़ी बिक्री सिस्टम — React + Vite + Tailwind CSS + Supabase पर बना हुआ।
-ऑनलाइन भुगतान (UPI / कार्ड / नेट बैंकिंग) और वैकल्पिक **Cash on Delivery** (एडमिन पैनल से चालू/बंद)।
+केवल **ऑनलाइन भुगतान** (UPI / कार्ड / नेट बैंकिंग) — Cash on Delivery कहीं भी नहीं है।
 
 ---
 
@@ -15,15 +15,12 @@ apna-kisan-sabjiwala/
 │   ├── components/      → रीयूज़ेबल UI (Header, BottomNav, VegetableCard...)
 │   ├── context/         → कार्ट, सेटिंग, एडमिन-ऑथ का React Context
 │   └── utils/           → भुगतान, WhatsApp मैसेज, फॉर्मेटिंग हेल्पर
-├── supabase/full_schema.sql → पूरा डेटाबेस (सारी माइग्रेशन एक फ़ाइल में) + RLS + डेमो डेटा
-├── DEPLOY_GUIDE_HI.md    → नई इंस्टॉलेशन की पूरी हिंदी गाइड (यहीं से शुरू करें)
+├── supabase/schema.sql   → पूरा डेटाबेस स्कीमा + RLS + डेमो डेटा
 ├── .env.example          → ज़रूरी एनवायरनमेंट वैरिएबल की लिस्ट
 └── package.json
 ```
 
 ---
-
-> 🆕 **नई इंस्टॉलेशन?** नीचे की पुरानी सेटअप-विधि की जगह **`DEPLOY_GUIDE_HI.md`** देखें — उसमें डेटाबेस (`supabase/full_schema.sql`), Edge Functions, Razorpay, Push और Vercel तक सब कुछ क्रम से है।
 
 ## 1️⃣ शुरुआत कैसे करें (लोकल पर चलाना)
 
@@ -43,7 +40,7 @@ npm run dev
 
 1. [supabase.com](https://supabase.com) पर मुफ़्त में एक नया प्रोजेक्ट बनाएं।
 2. Supabase Dashboard में **SQL Editor** खोलें।
-3. `supabase/full_schema.sql` फाइल की पूरी कॉपी वहां पेस्ट करके **Run** करें।
+3. `supabase/schema.sql` फाइल की पूरी कॉपी वहां पेस्ट करके **Run** करें।
    - यह सभी टेबल, सुरक्षा नियम (RLS), और कुछ डेमो सब्ज़ियाँ/श्रेणियाँ अपने आप बना देगा।
 4. **Project Settings → API** में जाकर:
    - `Project URL` कॉपी करें → `.env` में `VITE_SUPABASE_URL` में डालें
@@ -151,7 +148,7 @@ where id = 1;
 4. Environment variables में वही जानकारी डालें जो ऊपर बताई गई है।
 
 ### Supabase प्रोडक्शन चेकलिस्ट
-- RLS सभी टेबल पर चालू है (full_schema.sql में पहले से किया गया है) ✅
+- RLS सभी टेबल पर चालू है (schema.sql में पहले से किया गया है) ✅
 - `vegetable-images` bucket public है ✅
 - कम से कम एक एडमिन यूज़र बना हुआ है ✅
 
@@ -208,7 +205,7 @@ alter table orders replica identity full;
 
 ### ज़रूरी सेटअप
 1. Supabase Authentication में **"Confirm email" बंद रखें** (Authentication → Providers → Email → "Confirm email" टॉगल बंद करें), वरना विक्रेता साइन-अप के तुरंत बाद अपने आप लॉगिन नहीं हो पाएगा और प्रोफाइल नहीं बन पाएगी
-2. (मल्टी-वेंडर हिस्सा `supabase/full_schema.sql` में पहले से शामिल है — अलग से कुछ चलाने की ज़रूरत नहीं)
+2. अगर आपने पहले schema.sql चला रखी है, तो `supabase/schema.sql` फाइल के आखिर में मौजूद **"मल्टी-वेंडर मार्केटप्लेस"** वाला MIGRATION हिस्सा SQL Editor में चलाएं
 
 ---
 
@@ -292,7 +289,7 @@ Relationship:
 
 ### Supabase migration
 
-The vendor/seller association is already included in `supabase/full_schema.sql`.
+Run `supabase/vendor_seller_association.sql` after the main `supabase/schema.sql`. This adds the public approved/active seller read policy and indexes required for the association.
 
 ## डायनामिक प्राइसिंग
 खरीद कीमत से बिक्री कीमत अपने आप निकालने वाला सिस्टम — सेटअप और उपयोग: [PRICING_ENGINE.md](./PRICING_ENGINE.md)

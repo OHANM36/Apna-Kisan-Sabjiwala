@@ -20,8 +20,8 @@ supabase functions deploy send-order-push --no-verify-jwt
 ```
 
 ## 4) Database (SQL Editor)
-1. `supabase/full_schema.sql` पहले ही चल चुकी है (उसमें push की टेबल/trigger शामिल हैं)।
-2. अपने मान डालकर यह चलाएँ:
+1. `supabase/push_notifications.sql` पूरी चलाएँ।
+2. फिर अपने मान डालकर यह चलाएँ:
 ```sql
 insert into push_config (key, value) values
   ('function_url', 'https://<PROJECT-REF>.supabase.co/functions/v1/send-order-push'),
@@ -42,39 +42,26 @@ on conflict (key) do update set value = excluded.value;
 ## टेस्ट
 कोई टेस्ट ऑर्डर डालें। कुछ सेकंड में नोटिफ़िकेशन आना चाहिए। न आए तो Supabase Dashboard → Edge Functions → `send-order-push` → Logs देखें।
 
+
 ---
 
-# ग्राहक Push नोटिफ़िकेशन — ऑर्डर की स्थिति बदलने पर (एक बार)
+# ऑफर / कूपन सूचना (सभी इच्छुक ग्राहकों को) — सेटअप (एक बार)
 
-एडमिन/डिलीवरी बॉय/भुगतान — किसी भी रास्ते से ऑर्डर की स्थिति बदलते ही, जिस ग्राहक ने सूचना चालू की है उसके फ़ोन पर नोटिफ़िकेशन जाता है (ऐप बंद हो तब भी)।
-VAPID keys और secrets ऊपर वाले ही हैं — नए बनाने की ज़रूरत नहीं।
+VAPID keys और `VITE_VAPID_PUBLIC_KEY` ऊपर वाले ही हैं; नया secret नहीं चाहिए।
 
-## 1) Edge Function डिप्लॉय
+1. Supabase SQL Editor में `supabase/offer_push.sql` पूरी चलाएँ।
+2. Edge Function डिप्लॉय करें (**`--no-verify-jwt` न लगाएँ** — यह मालिक के login से सुरक्षित है):
 ```bash
-supabase functions deploy send-customer-push --no-verify-jwt
+supabase functions deploy send-offer-push
 ```
+3. वेबसाइट दोबारा deploy करें (sw.js में नया badge भी है)।
 
-## 2) Database (SQL Editor)
-1. `supabase/full_schema.sql` में ग्राहक-push की टेबल/trigger पहले से शामिल हैं (अलग से कुछ चलाना नहीं)।
-2. यह चलाएँ (अपना PROJECT-REF डालकर; `secret` ऊपर के चरण में रखा जा चुका है):
-```sql
-insert into push_config (key, value) values
-  ('customer_function_url', 'https://<PROJECT-REF>.supabase.co/functions/v1/send-customer-push')
-on conflict (key) do update set value = excluded.value;
-```
-
-## 3) वेबसाइट
-कोड दोबारा deploy करें (`public/sw.js` भी बदला है)। `VITE_VAPID_PUBLIC_KEY` पहले से लगी है।
-
-## ग्राहक के लिए
-ऑर्डर देने के बाद ऑर्डर-पेज पर **"🔔 सूचना चालू करें"** कार्ड → ब्राउज़र पूछे तो **Allow**। एक बार चालू करने के बाद उसके अगले ऑर्डर अपने-आप जुड़ जाते हैं।
-iPhone पर: iOS 16.4+ और ऐप *Add to Home Screen* करके वहीं से खोलना होगा।
-
-## किन स्थितियों पर सूचना जाती है
-भुगतान सफल · स्वीकार किया गया · सामान तैयार हो रहा है · डिलीवरी के लिए निकल गया · डिलीवरी पूरी हुई · रद्द (संदेश हिंदी/English, ग्राहक की चुनी भाषा में)।
-"डिलीवरी के लिए निकल गया" की सूचना में, अगर ऑर्डर किसी डिलीवरी बॉय को सौंपा जा चुका है, तो उसका नाम और फ़ोन नंबर भी जाता है। फ़ोन नंबर नहीं भेजना हो तो `send-customer-push/index.ts` में `SHARE_DELIVERY_PHONE = false` करें।
-संदेश बदलने हों तो `supabase/functions/send-customer-push/index.ts` में `MESSAGES` बदलकर फ़ंक्शन दोबारा deploy करें।
+## कैसे चलता है
+- **ग्राहक:** होम पेज पर "नए ऑफर की सूचना पाएँ" कार्ड → "ऑफर सूचना चालू करें" दबाए तो ही जुड़ता है। "बाद में" दबाने पर 7 दिन नहीं दिखता।
+- **मालिक:** एडमिन → कूपन / ऑफर → किसी *चालू* कूपन पर **📣 सूचना भेजें** → संदेश जाँचें/बदलें → "सभी को भेजें"।
+- सुरक्षा: सिर्फ़ मालिक (role = admin) भेज सकता है; स्टाफ़ नहीं। एक घंटे में अधिकतम 5 बार भेजा जा सकता है।
+- जिन फ़ोनों ने अनुमति हटा दी, वे अपने-आप सूची से हट जाते हैं।
 
 ## टेस्ट
-टेस्ट ऑर्डर दें → ऑर्डर-पेज पर सूचना चालू करें → एडमिन पैनल से स्थिति बदलें (जैसे "स्वीकार करें")। कुछ सेकंड में नोटिफ़िकेशन आना चाहिए।
-न आए तो Supabase Dashboard → Edge Functions → `send-customer-push` → Logs देखें; और जाँचें कि `select * from customer_push_subscriptions;` में उस ऑर्डर की पंक्ति बनी है।
+अपने फ़ोन से ग्राहक साइट खोलकर ऑफर सूचना चालू करें, फिर एडमिन से "सूचना भेजें" दबाएँ।
+गिनती 0 दिखे तो कार्ड अभी किसी ने चालू नहीं किया। न आए तो Supabase → Edge Functions → `send-offer-push` → Logs देखें।

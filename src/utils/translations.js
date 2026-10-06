@@ -193,6 +193,12 @@ const translations = {
   push_ios: { hi: 'iPhone पर सूचना पाने के लिए ऐप को Safari से "Add to Home Screen" करके वहीं से खोलें।', en: 'On iPhone, use Safari "Add to Home Screen" and open the app from there to get notifications.' },
   push_err: { hi: 'सूचना चालू नहीं हो सकी। दोबारा कोशिश करें।', en: 'Could not turn on notifications. Please try again.' },
 
+  // ऑफर push नोटिफ़िकेशन (ग्राहक)
+  offer_push_title: { hi: 'नए ऑफर की सूचना पाएँ', en: 'Get notified about new offers' },
+  offer_push_desc: { hi: 'कूपन और छूट आते ही फ़ोन पर बताएँगे। कभी भी बंद कर सकते हैं।', en: 'We will tell you as soon as a new coupon or discount is live. You can turn it off any time.' },
+  offer_push_turn_on: { hi: '🔔 ऑफर सूचना चालू करें', en: '🔔 Turn on offer alerts' },
+  offer_push_later: { hi: 'बाद में', en: 'Not now' },
+
   // चेकआउट / ऑर्डर-पुष्टि के बचे हुए टेक्स्ट
   err_date_invalid: { hi: 'सही तारीख चुनें', en: 'Select a valid date' },
   checkout_coupon_min: { hi: 'इस कूपन के लिए न्यूनतम ऑर्डर {amount} होना चाहिए', en: 'This coupon needs a minimum order of {amount}' },

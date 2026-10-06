@@ -56,6 +56,11 @@ export default function AdminOffers() {
   const [formError, setFormError] = useState('')
   const [pageError, setPageError] = useState('')
   const [copied, setCopied] = useState('')
+  // ऑफर की push सूचना भेजने वाली विंडो
+  const [notify, setNotify] = useState(null) // { offer, title, body }
+  const [subCount, setSubCount] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [notifyMsg, setNotifyMsg] = useState({ ok: false, text: '' })
 
   useEffect(() => {
     load()
@@ -175,6 +180,42 @@ export default function AdminOffers() {
     load()
   }
 
+  async function openNotify(o) {
+    const min = Number(o.min_order_value) > 0 ? ` (${formatRupee(o.min_order_value)} से ऊपर के ऑर्डर पर)` : ''
+    setNotify({
+      offer: o,
+      title: `🎉 ${o.title}`.slice(0, 60),
+      body: `${discountLabel(o)}${min} — कोड ${o.coupon_code} लगाएँ।`.slice(0, 160),
+    })
+    setNotifyMsg({ ok: false, text: '' })
+    setSubCount(null)
+    const { data, error } = await supabase.rpc('offer_push_subscriber_count')
+    setSubCount(error ? -1 : data)
+  }
+
+  async function sendNotify() {
+    if (!notify || sending) return
+    const title = notify.title.trim()
+    const body = notify.body.trim()
+    if (!title || !body) return setNotifyMsg({ ok: false, text: 'शीर्षक और संदेश दोनों लिखें।' })
+    if (!confirm(`यह सूचना ${subCount > 0 ? subCount + ' ग्राहकों' : 'सभी ग्राहकों'} को अभी भेज दी जाएगी। भेजें?`)) return
+    setSending(true)
+    setNotifyMsg({ ok: false, text: '' })
+    const { data, error } = await supabase.functions.invoke('send-offer-push', {
+      body: { title, body, offer_id: notify.offer.id },
+    })
+    setSending(false)
+    if (error || data?.error) {
+      let text = data?.error
+      if (!text && error?.context?.json) {
+        try { text = (await error.context.json())?.error } catch { /* ignore */ }
+      }
+      return setNotifyMsg({ ok: false, text: text || 'सूचना नहीं भेजी जा सकी। थोड़ी देर बाद कोशिश करें।' })
+    }
+    setNotifyMsg({ ok: true, text: `✓ ${data.sent} ग्राहकों को भेज दी गई।` })
+    if (typeof data.removed === 'number' && data.removed > 0) setSubCount((c) => (c > 0 ? Math.max(0, c - data.removed) : c))
+  }
+
   async function copyCode(code) {
     try {
       await navigator.clipboard.writeText(code)
@@ -257,6 +298,9 @@ export default function AdminOffers() {
                 <button onClick={() => toggleActive(o)} className="text-xs font-bold text-kisan">
                   {o.is_active ? 'बंद करें' : 'चालू करें'}
                 </button>
+                {st.label === 'चालू' && o.coupon_code && (
+                  <button onClick={() => openNotify(o)} className="text-xs font-bold text-kisan-orange">📣 सूचना भेजें</button>
+                )}
                 <button onClick={() => openEdit(o)} className="text-blue-600 font-semibold text-xs">बदलें</button>
                 <button onClick={() => handleDelete(o)} className="text-red-500 font-semibold text-xs ml-auto">हटाएं</button>
               </div>
@@ -372,6 +416,52 @@ export default function AdminOffers() {
                 <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'सेव हो रहा है...' : 'सेव करें'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {notify && (
+        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+          <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold text-lg text-gray-800 mb-1">📣 ऑफर की सूचना भेजें</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              {subCount === null && 'गिनती देख रहे हैं…'}
+              {subCount === -1 && 'ग्राहकों की गिनती नहीं मिली (offer_push.sql चलाई है?)'}
+              {subCount === 0 && 'अभी किसी ग्राहक ने ऑफर सूचना चालू नहीं की है।'}
+              {subCount > 0 && `यह ${subCount} ग्राहकों के फ़ोन पर जाएगी, ऐप बंद हो तब भी।`}
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">शीर्षक</label>
+                <input className="input-field" maxLength={60} value={notify.title} onChange={(e) => setNotify({ ...notify, title: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">संदेश</label>
+                <textarea rows={3} className="input-field" maxLength={160} value={notify.body} onChange={(e) => setNotify({ ...notify, body: e.target.value })} />
+                <p className="text-[11px] text-gray-400 text-right">{notify.body.length}/160</p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-[11px] text-gray-400 mb-1">ग्राहक को ऐसा दिखेगा</p>
+                <p className="text-sm font-bold text-gray-800">{notify.title || '…'}</p>
+                <p className="text-xs text-gray-600">{notify.body || '…'}</p>
+              </div>
+
+              {notifyMsg.text && (
+                <p className={`text-sm font-semibold ${notifyMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{notifyMsg.text}</p>
+              )}
+
+              <div className="flex gap-3 mt-1">
+                <button type="button" onClick={() => setNotify(null)} className="btn-outline flex-1">
+                  {notifyMsg.ok ? 'बंद करें' : 'रद्द करें'}
+                </button>
+                {!notifyMsg.ok && (
+                  <button type="button" onClick={sendNotify} disabled={sending || subCount === 0} className="btn-primary flex-1">
+                    {sending ? 'भेज रहे हैं…' : 'सभी को भेजें'}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

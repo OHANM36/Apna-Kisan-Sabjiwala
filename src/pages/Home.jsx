@@ -10,6 +10,7 @@ import { formatRupee } from '../utils/format'
 import { matchesVegetableSearch } from '../utils/searchMatch'
 import { cachePublished, readPublishedCache } from '../pricing/priceCache'
 import { VegetableGridSkeleton } from '../components/Skeleton'
+import OfferPushCard from '../components/OfferPushCard'
 
 export default function Home() {
   const [vegetables, setVegetables] = useState([])
@@ -108,6 +109,8 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          <OfferPushCard />
 
           <div className="px-3 pt-3">
             <div className="bg-kisan-dark/5 border border-kisan/20 rounded-xl px-3 py-2 text-xs text-kisan-dark font-semibold">
