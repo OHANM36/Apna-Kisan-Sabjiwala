@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
@@ -15,9 +15,6 @@ function VegetableCard({ veg }) {
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
-  const [warn, setWarn] = useState(false)
-  const warnTimer = useRef(null)
-  useEffect(() => () => clearTimeout(warnTimer.current), [])
 
   const tiers = useMemo(
     () => (Array.isArray(veg.price_tiers) && veg.price_tiers.length > 0 ? veg.price_tiers : null),
@@ -60,29 +57,21 @@ function VegetableCard({ veg }) {
     flashAdded()
   }
 
-  // कार्ड पर टैप: कार्ट में नहीं है तो जोड़ें (1); है और मात्रा 1 है तो हटा दें; 1 से ज़्यादा हो तो कुछ न हटाएँ।
+  // कार्ड पर एक टैप: कार्ट में नहीं है तो जोड़ें; पहले से है तो कुछ नहीं।
   // अंदर के बटन / dropdown (Add, −, +, tier चुनना) अपना काम खुद करते हैं — उन पर यह नहीं चलता।
   const isSelected = tiers ? !!inCartTiered : !!inCartSimple
   function handleCardTap(e) {
     if (e.target.closest('button, select, option, a, input')) return
-    if (unavailable) return
-    if (isSelected) {
-      // मात्रा 1 से ज़्यादा हो तो गलती से टैप पर लाइन न हटे — चेतावनी दिखाएँ; हटाने के लिए − इस्तेमाल करें
-      const line = tiers ? inCartTiered : inCartSimple
-      if (line.quantity > 1) {
-        setBump(true)
-        setTimeout(() => setBump(false), 350)
-        setWarn(true)
-        clearTimeout(warnTimer.current)
-        warnTimer.current = setTimeout(() => setWarn(false), 2200)
-        return
-      }
-      removeFromCart(tiers ? selectedTierCartId : veg.id)
-    } else if (tiers) {
-      handleAddTiered()
-    } else {
-      handleAddSimple()
-    }
+    if (unavailable || isSelected) return
+    if (tiers) handleAddTiered()
+    else handleAddSimple()
+  }
+
+  // कार्ड पर डबल टैप: किसी भी मात्रा में कार्ट से हटाएँ।
+  function handleCardDoubleTap(e) {
+    if (e.target.closest('button, select, option, a, input')) return
+    if (unavailable || !isSelected) return
+    removeFromCart(tiers ? selectedTierCartId : veg.id)
   }
 
   function flashAdded() {
@@ -99,7 +88,8 @@ function VegetableCard({ veg }) {
   return (
     <div
       onClick={handleCardTap}
-      className={`card overflow-hidden flex flex-col ${unavailable ? '' : 'cursor-pointer'}`}
+      onDoubleClick={handleCardDoubleTap}
+      className={`card overflow-hidden flex flex-col select-none touch-manipulation ${unavailable ? '' : 'cursor-pointer'}`}
     >
       <div className={`relative aspect-square bg-kisan-crate/40 flex items-center justify-center ${veg.image_url && !imgLoaded ? 'animate-pulse bg-gray-200' : ''}`}>
         {hasDiscount && (
@@ -118,11 +108,6 @@ function VegetableCard({ veg }) {
           />
         ) : (
           <VeggieCharacter name={veg.name} className="w-16 h-16" />
-        )}
-        {warn && (
-          <div role="alert" className="absolute bottom-0 inset-x-0 z-20 bg-kisan-tomato/95 text-white text-[10px] font-bold text-center leading-tight px-2 py-1.5">
-            {t('veg_tap_warn')}
-          </div>
         )}
         {unavailable && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
