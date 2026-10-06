@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/LanguageContext'
 import { formatRupee } from '../utils/format'
@@ -15,6 +15,9 @@ function VegetableCard({ veg }) {
   const [justAdded, setJustAdded] = useState(false)
   const [bump, setBump] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [warn, setWarn] = useState(false)
+  const warnTimer = useRef(null)
+  useEffect(() => () => clearTimeout(warnTimer.current), [])
 
   const tiers = useMemo(
     () => (Array.isArray(veg.price_tiers) && veg.price_tiers.length > 0 ? veg.price_tiers : null),
@@ -64,11 +67,14 @@ function VegetableCard({ veg }) {
     if (e.target.closest('button, select, option, a, input')) return
     if (unavailable) return
     if (isSelected) {
-      // मात्रा 1 से ज़्यादा हो तो गलती से टैप पर लाइन न हटे — सिर्फ़ मात्रा-अंक हिलाकर बताएँ; हटाने के लिए −/+ इस्तेमाल करें
+      // मात्रा 1 से ज़्यादा हो तो गलती से टैप पर लाइन न हटे — चेतावनी दिखाएँ; हटाने के लिए − इस्तेमाल करें
       const line = tiers ? inCartTiered : inCartSimple
       if (line.quantity > 1) {
         setBump(true)
         setTimeout(() => setBump(false), 350)
+        setWarn(true)
+        clearTimeout(warnTimer.current)
+        warnTimer.current = setTimeout(() => setWarn(false), 2200)
         return
       }
       removeFromCart(tiers ? selectedTierCartId : veg.id)
@@ -93,7 +99,7 @@ function VegetableCard({ veg }) {
   return (
     <div
       onClick={handleCardTap}
-      className={`card overflow-hidden flex flex-col transition-shadow ${unavailable ? '' : 'cursor-pointer'} ${isSelected ? 'ring-2 ring-kisan' : ''}`}
+      className={`card overflow-hidden flex flex-col ${unavailable ? '' : 'cursor-pointer'}`}
     >
       <div className={`relative aspect-square bg-kisan-crate/40 flex items-center justify-center ${veg.image_url && !imgLoaded ? 'animate-pulse bg-gray-200' : ''}`}>
         {hasDiscount && (
@@ -113,10 +119,10 @@ function VegetableCard({ veg }) {
         ) : (
           <VeggieCharacter name={veg.name} className="w-16 h-16" />
         )}
-        {isSelected && (
-          <span className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-kisan text-white text-sm font-bold flex items-center justify-center shadow">
-            ✓
-          </span>
+        {warn && (
+          <div role="alert" className="absolute bottom-0 inset-x-0 z-20 bg-kisan-tomato/95 text-white text-[10px] font-bold text-center leading-tight px-2 py-1.5">
+            {t('veg_tap_warn')}
+          </div>
         )}
         {unavailable && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">

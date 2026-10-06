@@ -42,6 +42,7 @@ const translations = {
   veg_add_to_cart: { hi: 'कार्ट में डालें', en: 'Add to Cart' },
   veg_unavailable: { hi: 'अनुपलब्ध', en: 'Unavailable' },
   veg_off: { hi: 'छूट', en: 'off' },
+  veg_tap_warn: { hi: '⚠️ मात्रा 1 से ज़्यादा है — हटाने के लिए − दबाएँ', en: '⚠️ Quantity is more than 1 — press − to remove' },
 
   // Cart page
   cart_title: { hi: 'आपका कार्ट', en: 'Your Cart' },
